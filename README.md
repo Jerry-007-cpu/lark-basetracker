@@ -1,188 +1,96 @@
-# lark-jobtracker · 飞书岗位追踪
+**English** | [中文](./README.zh-CN.md)
 
-贴一个飞书多维表格链接，自动整理出某时间段内开放的校招岗位，直接在对话里显示，并可选推送到微信。
+# lark-jobtracker
 
-> 适合"很多人购买岗位表格"的校招场景：每天/随时把表里**新开放的公司岗位**汇总成一条清单。
+Paste a Feishu (Lark) Bitable link and get a clean digest of the campus-recruiting positions that opened in any time window — shown right in your chat, optionally pushed to WeChat.
 
-这是一个标准的 **Agent Skill**（`SKILL.md` + Python 脚本），可在 Claude Code / Codex / OpenClaw 等支持 Skill 的 agent 里使用，底层通过 [飞书官方 CLI `@larksuite/cli`](https://github.com/larksuite/cli) 调用飞书开放接口取数。
+**Idea:** lots of students buy shared Feishu job tables. This turns that table into a "what opened" digest, so you never miss a new posting.
 
----
+## What you get
 
-## 输出长这样
+- A digest of positions opened within any time window you pick (last 7 days, last 30 days, a date range)
+- **Auto-detected fields** — works even though everyone's table uses different column names
+- Sorted newest-first, with the fields you care about (positions, batch, official link, referral code…)
+- Optional push to **WeChat** via the official ClawBot channel (not a grey-area hack — won't get you banned)
+- Runs in **Claude Code, Codex, or OpenClaw** — it's a standard Skill, the core logic doesn't change between them
 
-```
-📌 开放岗位整理（2025-10-01 ~ 今天）　共 5 个
+## Quick start
 
-• 米哈游　开放：2026-01-07
-    岗位：职能 / 支持
-    批次：暑期提前批
-    招聘官网：米哈游HR实习生（招聘方向）Open Day
+1. Install this skill in your AI agent (see [Installation](#installation))
+2. Paste your Feishu table link, or just say *"organize the open jobs"*
+3. The agent guides you through the rest conversationally — no config files to edit by hand
 
-• 网易雷火　开放：2025-12-25
-    岗位：研发, 设计, 游戏策划
-    批次：暑期提前批
+The agent will ask you:
 
-• vivo　开放：2025-12-22
-    岗位：产品, 研发
-    批次：暑期提前批
-```
+- Which time window (last 7 days / last 30 days / a specific date range)
+- Which fields to show in the digest
+- Whether to also push it to WeChat
 
-字段（公司名 / 开放日期 / 岗位 / 批次 …）**自动识别**，每个人表头不一样也能用。
+## Adjust it by chatting
 
----
+Just tell your agent:
 
-## 快速开始
+- "Only show the last 7 days"
+- "Also include the referral-code field"
+- "Push it to WeChat every morning at 9"
 
-```bash
-# 1) 解析链接 + 自动识别字段（看看认得对不对）
-python3 scripts/organize_jobs.py inspect --link "<飞书链接>" --identity bot
+## How it works
 
-# 2) 整理最近 30 天开放的岗位，显示在终端
-python3 scripts/organize_jobs.py list \
-  --link "https://feishu.cn/base/<APP_TOKEN>?table=<TABLE_ID>" \
-  --identity bot --days 30 --show-fields "岗位,批次,招聘官网"
+1. You paste a Feishu Bitable link
+2. The skill resolves it to `app_token` / `table_id`
+3. It pulls the records through the official [Lark CLI](https://github.com/larksuite/cli) using **application identity**
+4. It filters by the "open date" field within your window, auto-matching the title/date columns
+5. It renders a digest in chat — and optionally writes a Markdown file and/or pushes to WeChat
 
-# 3) 同时存 md 文件 + 推微信
-python3 scripts/organize_jobs.py list --link "<base 链接>" --identity bot \
-  --days 30 --out 岗位清单.md --wechat
-```
+## Installation
 
-> 在 agent 里使用时，用户**只需贴链接**，agent 会按 [`SKILL.md`](./SKILL.md) 自动完成解析、问时间段、整理。
-
----
-
-## ⚠️ 踩坑复盘：为什么一开始读不到数据
-
-这一节非常重要——飞书的权限模型很绕，下面是我们实际踩过的全部坑和最终能用的配方。**核心结论先放这里：用应用身份 `--identity bot` + base 直链，不要用用户身份、不要用 wiki 链接。**
-
-### 根本原因
-
-读飞书的**私有**表格数据，无论用 lark-cli、裸调 API 还是任何 SDK，都必须有一个"有权限的飞书应用"。`@larksuite/cli` 背后用的是你自己建的自建应用（如 `Jerry's CLI`），所以一切取决于这个应用开通了哪些权限。这堵墙是**飞书的机制**，换工具绕不开。
-
-### 我们撞过的四道墙（按顺序）
-
-| # | 报错 | 原因 | 解法 |
-|---|------|------|------|
-| 1 | `need_user_authorization` | lark-cli 没登录授权 | `lark-cli auth login` 走 Device Flow 扫码授权 |
-| 2 | `token is required`（解析 wiki 时） | lark-cli 的 `api` **不读 URL 里的 `?query`**，查询参数必须用 `--params '{...}'` 单独传 | 脚本已改用 `--params` 传 JSON |
-| 3 | `action_privilege_required: base:record:retrieve`（用户身份读记录） | 用户身份的 token 即使有 `base:record:read`，飞书"列出记录"接口仍要 `base:record:retrieve`，而这个 scope 自建应用给不了用户身份 → **死路** | **改用应用身份 `--identity bot`** |
-| 4 | `action_scope_required: wiki:wiki:readonly`（应用身份解析 wiki） | 应用身份没开通 wiki 读权限 | **不用 wiki 链接**，改用 `base/<app_token>?table=<table_id>` 直链，跳过 wiki 解析 |
-
-### 最终能用的配方
-
-1. 飞书应用（`Jerry's CLI`）开通 **`bitable:app:readonly`（应用身份）** 并发布版本；
-2. 把这个应用**加为目标表的协作者**（可阅读）；
-3. 调用时加 **`--identity bot`**；
-4. 用 **base 直链**（不要 wiki 链接），即 `https://feishu.cn/base/<APP_TOKEN>?table=<TABLE_ID>`。
-
-> wiki 链接里的 `<APP_TOKEN>` / `<TABLE_ID>` 怎么拿？先用**用户身份**跑一次 `inspect --link "<wiki链接>"`（用户身份有 wiki 读权限），它会打印出 `app_token` 和 `table_id`，之后就一直用 base 直链 + `--identity bot`。
-
----
-
-## 完整安装与配置流程
-
-### 第 0 步：装 lark-cli（飞书官方 CLI）
+### Claude Code
 
 ```bash
-npm install -g @larksuite/cli
-# 加进 PATH（可选）
-export PATH="$HOME/.local/lib/node_modules/@larksuite/cli/bin:$PATH"
+git clone https://github.com/Jerry-007-cpu/lark-jobtracker.git ~/.claude/skills/lark-jobtracker
 ```
 
-> ⚠️ lark-cli 是 macOS / Windows 原生二进制，**不能在 Linux 容器/沙箱里跑**，必须在本机。
-
-### 第 1 步：在飞书开放平台建应用并开通权限
-
-1. 打开 <https://open.feishu.cn/app>，创建一个自建应用（或用 lark-cli 首次登录时引导创建的那个）。
-2. 左侧 **权限管理 → 开通权限**，搜索并开通：
-   - **`bitable:app:readonly`** —— 查看、评论和导出多维表格（**应用身份**）
-3. 左侧 **版本管理与发布 → 创建版本 → 申请发布**，等顶部显示"当前修改均已发布"。
-
-### 第 2 步：把应用加进目标表
-
-在飞书里打开你的多维表格 → 右上角 **分享 / … → 添加文档应用（或协作者）** → 搜索你的应用名 → 给 **可阅读** 权限。
-
-> 不加这一步，应用身份能调通接口但读不到这张具体的表。
-
-### 第 3 步：lark-cli 授权登录
+### OpenClaw
 
 ```bash
-lark-cli auth login          # 业务域勾上 base，扫码授权
-lark-cli auth status         # 看到已登录即可
+git clone https://github.com/Jerry-007-cpu/lark-jobtracker.git ~/skills/lark-jobtracker
 ```
 
-### 第 4 步：拿到 app_token / table_id
+## Requirements
 
-```bash
-python3 scripts/organize_jobs.py inspect --link "<你的 wiki 或 base 链接>"
-# 输出里记下 app_token 和 table_id
-```
+- An AI agent (Claude Code / Codex / OpenClaw)
+- The official **Lark CLI** (`@larksuite/cli`) installed and authorized on your machine
+- A Feishu custom app with **`bitable:app:readonly`** enabled (application identity), added as a collaborator on your table
 
-### 第 5 步：整理岗位
+> Unlike skills that read public content, Feishu data is **private** — so a one-time Feishu app setup is unavoidable. It takes a few minutes; see [Setup](#first-time-setup-feishu).
 
-```bash
-python3 scripts/organize_jobs.py list \
-  --link "https://feishu.cn/base/<APP_TOKEN>?table=<TABLE_ID>" \
-  --identity bot --days 30 --show-fields "岗位,批次,招聘官网"
-```
+## First-time setup (Feishu)
 
----
+The thing nobody tells you: reading a private Feishu table needs an app with the right permission, and there are a couple of traps. Here's the recipe that actually works.
 
-## 推送到微信（可选）
+1. Install the CLI: `npm install -g @larksuite/cli`
+2. At <https://open.feishu.cn/app>, open your app → **权限管理** → enable **`bitable:app:readonly`** → **版本管理与发布** → create & publish a version.
+3. Open your table in Feishu → **Share / collaborators** → add your app with read access.
+4. `lark-cli auth login` (pick the `base` domain, scan to authorize).
+5. Get the table ids once: `python3 scripts/organize_jobs.py inspect --link "<your link>"`.
 
-走腾讯官方的**微信 ClawBot**通道（不是灰色协议，不封号）：
+**Two traps we hit (and how to avoid them):**
 
-1. 本机装 [QClaw](https://qclaw.qq.com) 并按[官方指南](https://qclaw.qq.com/docs/206087648449069056/)微信扫码接入；
-2. `npm install -g @claw-lab/wxclawbot-cli`，`wxclawbot accounts --json` 验证；
-3. list 命令加 `--wechat` 即可推送。注意 ClawBot 限频约 7 条 / 5 分钟（日报是一整条，没问题）。
+- Use **`--identity bot`** (application identity). User identity can't get the `base:record:retrieve` privilege a self-built app needs to list records.
+- Use a **base direct link** (`https://feishu.cn/base/<APP_TOKEN>?table=<TABLE_ID>`), not the wiki link — application identity has no wiki-read scope, so the base link skips that step.
 
----
+Full troubleshooting table is in [README.zh-CN.md](./README.zh-CN.md#踩坑复盘).
 
-## 每天定时整理（可选）
+## Privacy
 
-用 macOS 的 `launchd` 或 `cron` 把 list 命令挂成每天一次。示例（cron，每天 9:00）：
+- Your Feishu data stays between your own machine and Feishu's API — nothing is sent to any third party.
+- The Lark CLI stores its tokens locally on your machine.
+- The skill only reads the table you point it at.
 
-```bash
-crontab -e
-0 9 * * * cd ~/Desktop/飞书提效/feishu-jobs-digest && /usr/bin/python3 scripts/organize_jobs.py list --link "https://feishu.cn/base/<APP_TOKEN>?table=<TABLE_ID>" --identity bot --days 1 --wechat >> data/notify.log 2>&1
-```
+## Acknowledgements
 
-> 定时跑需要你的电脑在那个时间点**开机且联网**（QClaw 也要在线）。完整 launchd 配置见仓库历史或 issue。
-
----
-
-## 跨 agent 使用（Claude Code / Codex / OpenClaw）
-
-`SKILL.md` + Python 脚本是跨 agent 的标准格式，**核心逻辑不用改**。差异只在两处：
-
-- **安装位置**：Claude Code 放 `~/.claude/skills/`；OpenClaw 放它的 skills 目录或 `clawhub install`；Codex 放它的技能目录。
-- **定时机制**：各家用各自的调度，或统一用系统 cron / launchd。
-
-脚本只要求宿主 agent 能跑 shell，且本机已装并授权好 lark-cli。
-
----
-
-## 命令速查
-
-```
-inspect  --link <链接> [--identity bot]
-         解析链接、列出字段、给出"标题/开放时间"字段的自动匹配建议
-
-list     --link <链接> --identity bot
-         [--days N | --since YYYY-MM-DD --until YYYY-MM-DD]
-         [--title-field 字段] [--date-field 字段]
-         [--show-fields "A,B,C"] [--out 文件.md] [--wechat]
-         整理某时间段开放的岗位
-```
-
-字段不传时**自动识别**（主字段→标题，日期型/名称含"开放/发布"→开放时间）；识别不对再用 `--title-field` / `--date-field` 覆盖。
-
----
-
-## 致谢与参考
-
-- [larksuite/cli](https://github.com/larksuite/cli) —— 飞书官方 CLI，取数底座
-- [zarazhangrui/follow-builders](https://github.com/zarazhangrui/follow-builders) —— "贴链接即用 + 定时推送"的 Skill 范式参考
+- [larksuite/cli](https://github.com/larksuite/cli) — the official Feishu CLI that powers data access
+- [zarazhangrui/follow-builders](https://github.com/zarazhangrui/follow-builders) — inspiration for the "paste-a-link + scheduled digest" Skill pattern
 
 ## License
 
