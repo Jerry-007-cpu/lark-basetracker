@@ -1,0 +1,14 @@
+{
+  "app_token": "把这里换成多维表格的 app_token（base/xxx 或 wiki 解析出的 obj_token）",
+  "table_id": "把这里换成 table_id（URL 里的 ?table=tblXXXX）",
+
+  "title_field": "公司名称",
+  "show_fields": ["状态", "金额", "联系人", "更新备注"],
+
+  "wechat_to": "",
+
+  "max_items": 30,
+  "lark_cli": "~/.local/lib/node_modules/@larksuite/cli/bin/lark-cli",
+  "wxclawbot": "wxclawbot",
+  "snapshot_path": "data/snapshots/main.json"
+}

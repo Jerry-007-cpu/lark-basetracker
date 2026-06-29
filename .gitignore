@@ -1,0 +1,11 @@
+# 本地配置与数据，不要提交
+config.json
+data/
+*.log
+
+# Python
+__pycache__/
+*.pyc
+
+# 系统
+.DS_Store
