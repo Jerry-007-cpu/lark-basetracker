@@ -1,44 +1,101 @@
 [English](./README.md) | **中文**
 
-# lark-basetracker · 飞书多维表格更新追踪
+<div align="center">
+  <h1>lark-basetracker</h1>
+  <p>把飞书多维表格变成一份清晰的“最近更新了什么”摘要。</p>
+  <p>
+    <a href="./LICENSE">MIT License</a> ·
+    <a href="./SKILL.md">Skill 定义</a> ·
+    <a href="./config.example.json">示例配置</a>
+  </p>
+</div>
 
-贴一个飞书多维表格链接，选择一个日期或更新时间字段，就能整理出某段时间内更新过的记录。
+## 目录
 
-最初的使用场景是求职博主追踪职位更新：把买来的、共建的、自己维护的岗位表，变成一份“最近更新了什么职位”的清单。底层逻辑是通用的，所以也可以用于项目进度、线索表、内容排期、供应商库等任何带日期字段的表格。
+- [项目简介](#项目简介)
+- [为什么做这个项目](#为什么做这个项目)
+- [当前能力](#当前能力)
+- [工作流程](#工作流程)
+- [快速开始](#快速开始)
+- [命令示例](#命令示例)
+- [安装方式](#安装方式)
+- [飞书配置](#飞书配置)
+- [配置说明](#配置说明)
+- [项目结构](#项目结构)
+- [注意事项](#注意事项)
+- [隐私](#隐私)
+- [许可证](#许可证)
 
-## 当前已经能做什么
+## 项目简介
 
-- 通过飞书官方 Lark CLI 读取多维表格记录
-- 支持解析 `base/` 直链；权限允许时也能解析 `wiki/` 链接
-- 先列出表格字段，方便选择标题字段、日期字段和展示字段
+`lark-basetracker` 用来整理飞书多维表格在某个时间窗口内更新过的记录。
+
+你只需要贴一个多维表格链接，指定一个日期类字段，比如 `更新时间`、`发布时间`、`Last edited time`，脚本就会输出一份适合发到聊天、文档或微信里的 Markdown 摘要。
+
+这个项目最初面向求职博主整理岗位更新，但底层流程是通用的，也适用于项目管理、客户线索、内容排期、供应商库等场景。
+
+## 为什么做这个项目
+
+很多多维表格其实已经包含了“这周更新了什么”的答案，只是这些答案埋在一堆原始记录里，不适合直接阅读或转发。
+
+这个项目不走重量级同步系统路线，而是直接复用表里已有的日期字段做筛选。这样接入成本低，只要你的表里已经维护了可靠的时间字段，就能立刻跑起来。
+
+## 当前能力
+
+- 通过飞书官方 `lark-cli` 读取多维表格记录
+- 支持解析 `base/` 直链；权限允许时也支持 `wiki/` 链接
+- 先检查字段，再决定标题字段、日期字段和输出字段
 - 自动猜测标题字段和日期/更新时间字段
-- 按时间窗口筛选记录：
-  - 最近 N 天
-  - 指定起止日期
-- 在对话里输出一份 Markdown 风格摘要
-- 可选写入 Markdown 文件
+- 支持按最近 N 天或指定起止日期筛选
+- 输出适合聊天展示的 Markdown 风格摘要
+- 可选写入本地 Markdown 文件
 - 可选通过 `wxclawbot` 推送到微信
 
-## 现在还没有什么
+## 工作流程
 
-当前版本还没有做“快照对比”，也不会逐字段判断“这条记录哪里变了”。它的追踪方式是：使用表格里已有的日期字段来筛选记录，比如 `更新时间`、`发布时间`、`开放时间`、`最后更新时间`、`Last edited time`。
+1. 解析用户给的飞书链接，拿到 `app_token` 和 `table_id`。
+2. 读取字段列表，自动识别可能的标题字段和日期字段。
+3. 通过 `lark-cli` 调用飞书 OpenAPI 拉取记录。
+4. 归一化日期值，并按时间范围过滤。
+5. 生成一份易读、易转发的摘要。
 
-也就是说，只要你的表里有一个可信的“创建时间 / 更新时间 / 发布时间 / 开放时间”字段，现在就能用。
+示例输出：
 
-## 典型场景
+```text
+📌 表格更新整理（2026-06-24 ~ 2026-06-30） 共 2 条
 
-- 求职博主：整理最近 24 小时更新的职位，展示公司、岗位、城市、投递链接、内推码。
-- 岗位表维护者：每周生成一次本周新增或更新岗位清单。
-- 项目管理：列出本周更新过的任务，展示负责人、状态、备注。
-- 内容运营：整理本周发布或修改过的选题。
+• 产品经理  日期：2026-06-29
+    公司：某互联网公司
+    地点：深圳
+    投递链接：https://example.com
+
+• 后端开发  日期：2026-06-28
+    公司：某科技公司
+    地点：北京
+```
 
 ## 快速开始
 
-1. 在你的 AI agent 里安装这个 skill。
-2. 贴上飞书多维表格链接。
-3. 说清楚你要看的时间范围和展示字段。
+1. 把这个仓库放到你的 agent 能读取 `SKILL.md` 的位置，或者直接运行脚本。
+2. 确保本机已经安装并授权 `lark-cli`。
+3. 把你的飞书应用添加为目标多维表格协作者。
+4. 先检查字段：
 
-示例：
+```bash
+python3 scripts/organize_jobs.py inspect --identity bot --link "<你的飞书表格链接>"
+```
+
+5. 再生成更新摘要：
+
+```bash
+python3 scripts/organize_jobs.py list --identity bot --link "<你的飞书表格链接>" \
+  --date-field "更新时间" \
+  --days 7 \
+  --title-field "岗位名称" \
+  --show-fields "公司,地点,投递链接,内推码"
+```
+
+如果你是通过 AI agent 来用，很多时候直接说自然语言就够了：
 
 ```text
 整理这张飞书表最近 3 天更新的职位，展示公司、岗位、地点、投递链接。
@@ -48,14 +105,7 @@
 看一下这个多维表格最近 7 天更新的记录，标题用名称字段。
 ```
 
-Agent 通常会确认：
-
-- 用哪个字段作为更新时间/日期字段
-- 用哪个字段作为每条记录的标题
-- 摘要里展示哪些字段
-- 看最近几天，还是指定起止日期
-
-## 常用命令
+## 命令示例
 
 先检查表格字段：
 
@@ -93,7 +143,18 @@ python3 scripts/organize_jobs.py list --identity bot --link "<你的飞书表格
   --out updates.md
 ```
 
-## 安装
+推送到微信：
+
+```bash
+python3 scripts/organize_jobs.py list --identity bot --link "<你的飞书表格链接>" \
+  --date-field "更新时间" \
+  --days 1 \
+  --title-field "岗位名称" \
+  --show-fields "公司,地点,投递链接,内推码" \
+  --wechat
+```
+
+## 安装方式
 
 ### Claude Code
 
@@ -109,47 +170,81 @@ git clone https://github.com/Jerry-007-cpu/lark-basetracker.git ~/skills/lark-ba
 
 ### Codex
 
-把这个仓库放到 Codex 可读取的技能目录，或者作为普通项目保留；需要使用时让 Codex 读取 `SKILL.md` 后调用脚本即可。
+把仓库放在 Codex 可读取的位置，并在使用前让 Codex 读取 [`SKILL.md`](./SKILL.md)。
 
-## 系统要求
+### 直接运行脚本
 
-- 一个能运行 shell 命令的 AI agent
-- 本机已安装并授权飞书官方 Lark CLI（`@larksuite/cli`）
-- 一个飞书自建应用，已开通 `bitable:app:readonly`
-- 目标多维表格已把这个自建应用加为协作者
-- 可选：如果要推微信，需要安装并配置 `wxclawbot`
+需要：
 
-## 首次配置飞书
+- Python 3
+- `@larksuite/cli`
+- 一个已开通 `bitable:app:readonly` 的飞书自建应用
+- 目标多维表格已将该应用添加为协作者
+- 可选：如果要推微信，需要安装 `wxclawbot`
 
-1. 安装 CLI：
+## 飞书配置
 
-   ```bash
-   npm install -g @larksuite/cli
-   ```
+1. 安装官方 CLI：
 
-2. 打开 <https://open.feishu.cn/app>，进入你的应用，开通 `bitable:app:readonly`，然后创建并发布新版本。
-3. 在飞书里打开目标多维表格，把你的应用加为可阅读协作者。
-4. 运行 `lark-cli auth login`，授权 `base` 业务域。
-5. 测试读取：
+```bash
+npm install -g @larksuite/cli
+```
 
-   ```bash
-   python3 scripts/organize_jobs.py inspect --identity bot --link "<你的飞书表格链接>"
-   ```
+2. 打开 [飞书开放平台](https://open.feishu.cn/app)，进入你的应用，开通 `bitable:app:readonly`，然后发布新版本。
+3. 在飞书里打开目标多维表格，把该应用加为可读协作者。
+4. 给 CLI 授权：
+
+```bash
+lark-cli auth login
+```
+
+5. 验证能否读取：
+
+```bash
+python3 scripts/organize_jobs.py inspect --identity bot --link "<你的飞书表格链接>"
+```
+
+## 配置说明
+
+[`config.example.json`](./config.example.json) 给出了最常见的配置项：
+
+- `app_token`：多维表格 app token
+- `table_id`：目标数据表 ID
+- `date_field`：用于筛选更新记录的字段
+- `title_field`：每条记录的标题字段
+- `show_fields`：摘要里展示的字段
+- `wechat_to`：可选的微信接收目标
+- `max_items`：给下游工作流使用的输出上限
+- `lark_cli`：本机 `lark-cli` 路径
+- `wxclawbot`：微信推送命令
+
+## 项目结构
+
+```text
+.
+├── README.md
+├── README.zh-CN.md
+├── SKILL.md
+├── config.example.json
+└── scripts/
+    └── organize_jobs.py
+```
 
 ## 注意事项
 
-- 优先使用多维表格直链：`https://feishu.cn/base/<APP_TOKEN>?table=<TABLE_ID>`。
-- 读取私有表时优先使用 `--identity bot`。
+- 优先使用 `https://feishu.cn/base/<APP_TOKEN>?table=<TABLE_ID>` 这种直链。
+- 读取私有多维表格时，优先使用 `--identity bot`。
 - 自动识别字段不准时，手动传 `--title-field` 和 `--date-field`。
-- 选择的日期字段为空或无法解析时，该记录会被跳过。
-- 日期字段可以是飞书日期字段、毫秒时间戳，或 `YYYY-MM-DD` 这类文本日期。
+- 选定日期字段后，字段为空或无法解析的记录会被跳过。
+- 支持的文本日期格式包括 `YYYY-MM-DD`、`YYYY-MM-DD HH:MM`、`YYYY-MM-DD HH:MM:SS`、`YYYY/MM/DD`。
+- 当前版本还没有实现快照对比，也不会输出逐字段 diff。
 
 ## 隐私
 
-- 数据只在你的电脑和飞书 API 之间流动。
-- Lark CLI token 由官方 CLI 保存在本机。
-- 脚本只读取你指定的那张多维表格。
+- 数据只在你的本机和飞书 API 之间流动。
+- `lark-cli` 的凭证由官方 CLI 保存在本地。
+- 脚本只会读取你明确指定的那张多维表格。
 
 ## 许可证
 
-[MIT](./LICENSE)
+本项目基于 MIT License 发布。详情见 [LICENSE](./LICENSE)。
