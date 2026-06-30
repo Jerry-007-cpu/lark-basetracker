@@ -4,8 +4,6 @@ data/
 *.log
 
 # Python
-__pycache__/
-*.pyc
-
-# 系统
 .DS_Store
+__pycache__/
+*.py[cod]

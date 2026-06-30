@@ -1,96 +1,154 @@
 **English** | [中文](./README.zh-CN.md)
 
-# lark-jobtracker
+# lark-basetracker
 
-Paste a Feishu (Lark) Bitable link and get a clean digest of the campus-recruiting positions that opened in any time window — shown right in your chat, optionally pushed to WeChat.
+Track recent updates in any Feishu/Lark Bitable. Paste a table link, choose a date or update-time field, and get a clean digest of records changed within a time window.
 
-**Idea:** lots of students buy shared Feishu job tables. This turns that table into a "what opened" digest, so you never miss a new posting.
+The first use case is job posting updates for career creators: turn a shared recruiting table into a daily "what changed" digest. The core flow is generic, so it can also work for leads, content calendars, project lists, vendor databases, or any table that has a usable date field.
 
-## What you get
+## What It Does Today
 
-- A digest of positions opened within any time window you pick (last 7 days, last 30 days, a date range)
-- **Auto-detected fields** — works even though everyone's table uses different column names
-- Sorted newest-first, with the fields you care about (positions, batch, official link, referral code…)
-- Optional push to **WeChat** via the official ClawBot channel (not a grey-area hack — won't get you banned)
-- Runs in **Claude Code, Codex, or OpenClaw** — it's a standard Skill, the core logic doesn't change between them
+- Reads records from a Feishu/Lark Bitable through the official Lark CLI
+- Resolves `base/` links and can also resolve `wiki/` links when permissions allow it
+- Lists table fields so you can pick the right title, date, and display fields
+- Auto-suggests a title field and a date/update field from common field names
+- Filters records by a time window:
+  - last N days
+  - explicit `YYYY-MM-DD` start/end dates
+- Renders a readable Markdown digest in chat
+- Optionally writes the digest to a Markdown file
+- Optionally pushes the digest to WeChat through `wxclawbot`
 
-## Quick start
+## What It Does Not Do Yet
 
-1. Install this skill in your AI agent (see [Installation](#installation))
-2. Paste your Feishu table link, or just say *"organize the open jobs"*
-3. The agent guides you through the rest conversationally — no config files to edit by hand
+This version does not compare snapshots or detect field-level diffs between two runs. It tracks updates by filtering records with an existing date-like field, such as `更新时间`, `发布时间`, `开放时间`, `Last edited time`, or another field you choose.
 
-The agent will ask you:
+That means it is already useful when your Bitable has a reliable "created at", "updated at", "published at", or "opened at" field.
 
-- Which time window (last 7 days / last 30 days / a specific date range)
-- Which fields to show in the digest
-- Whether to also push it to WeChat
+## Example Use Cases
 
-## Adjust it by chatting
+- Career blogger: "Show me jobs updated in the last 24 hours, include company, role, city, apply link, referral code."
+- Recruiting table owner: "Generate this week's new postings from my Feishu table."
+- Project tracker: "List tasks updated this week, include owner, status, and notes."
+- Content operations: "Show content items published or edited since Monday."
 
-Just tell your agent:
+## Quick Start
 
-- "Only show the last 7 days"
-- "Also include the referral-code field"
-- "Push it to WeChat every morning at 9"
+1. Install this skill in your AI agent.
+2. Paste a Feishu/Lark Bitable link.
+3. Ask for the update window you care about.
 
-## How it works
+Examples:
 
-1. You paste a Feishu Bitable link
-2. The skill resolves it to `app_token` / `table_id`
-3. It pulls the records through the official [Lark CLI](https://github.com/larksuite/cli) using **application identity**
-4. It filters by the "open date" field within your window, auto-matching the title/date columns
-5. It renders a digest in chat — and optionally writes a Markdown file and/or pushes to WeChat
+```text
+Summarize records updated in the last 7 days.
+```
+
+```text
+整理这张飞书表最近 3 天更新的职位，展示公司、岗位、地点、投递链接。
+```
+
+The agent will usually ask:
+
+- Which field should be used as the update/date field
+- Which field should be used as the record title
+- Which fields should appear in the digest
+- Which time window to use
+
+## Commands
+
+Inspect a table and list fields:
+
+```bash
+python3 scripts/organize_jobs.py inspect --identity bot --link "<your-base-link>"
+```
+
+List records updated in the last 7 days:
+
+```bash
+python3 scripts/organize_jobs.py list --identity bot --link "<your-base-link>" \
+  --date-field "更新时间" \
+  --days 7 \
+  --title-field "岗位名称" \
+  --show-fields "公司,地点,投递链接,内推码"
+```
+
+Use an explicit date range:
+
+```bash
+python3 scripts/organize_jobs.py list --identity bot --link "<your-base-link>" \
+  --date-field "更新时间" \
+  --since 2026-06-01 \
+  --until 2026-06-30 \
+  --title-field "名称"
+```
+
+Write the digest to a Markdown file:
+
+```bash
+python3 scripts/organize_jobs.py list --identity bot --link "<your-base-link>" \
+  --date-field "更新时间" \
+  --days 7 \
+  --title-field "名称" \
+  --out updates.md
+```
 
 ## Installation
 
 ### Claude Code
 
 ```bash
-git clone https://github.com/Jerry-007-cpu/lark-jobtracker.git ~/.claude/skills/lark-jobtracker
+git clone https://github.com/Jerry-007-cpu/lark-basetracker.git ~/.claude/skills/lark-basetracker
 ```
 
 ### OpenClaw
 
 ```bash
-git clone https://github.com/Jerry-007-cpu/lark-jobtracker.git ~/skills/lark-jobtracker
+git clone https://github.com/Jerry-007-cpu/lark-basetracker.git ~/skills/lark-basetracker
 ```
+
+### Codex
+
+Put this repository in your Codex skills directory or keep it as a local project and let Codex read `SKILL.md` before running the script.
 
 ## Requirements
 
-- An AI agent (Claude Code / Codex / OpenClaw)
-- The official **Lark CLI** (`@larksuite/cli`) installed and authorized on your machine
-- A Feishu custom app with **`bitable:app:readonly`** enabled (application identity), added as a collaborator on your table
+- An AI agent that can run shell commands
+- The official Lark CLI (`@larksuite/cli`) installed and authorized
+- A Feishu/Lark custom app with `bitable:app:readonly` enabled
+- The custom app added as a collaborator on the target Bitable
+- Optional: `wxclawbot` if you want WeChat pushes
 
-> Unlike skills that read public content, Feishu data is **private** — so a one-time Feishu app setup is unavoidable. It takes a few minutes; see [Setup](#first-time-setup-feishu).
+## First-Time Feishu Setup
 
-## First-time setup (Feishu)
+1. Install the CLI:
 
-The thing nobody tells you: reading a private Feishu table needs an app with the right permission, and there are a couple of traps. Here's the recipe that actually works.
+   ```bash
+   npm install -g @larksuite/cli
+   ```
 
-1. Install the CLI: `npm install -g @larksuite/cli`
-2. At <https://open.feishu.cn/app>, open your app → **权限管理** → enable **`bitable:app:readonly`** → **版本管理与发布** → create & publish a version.
-3. Open your table in Feishu → **Share / collaborators** → add your app with read access.
-4. `lark-cli auth login` (pick the `base` domain, scan to authorize).
-5. Get the table ids once: `python3 scripts/organize_jobs.py inspect --link "<your link>"`.
+2. Open <https://open.feishu.cn/app>, choose your app, enable `bitable:app:readonly`, then create and publish a new version.
+3. Open the target Bitable in Feishu and add your app as a collaborator with read access.
+4. Run `lark-cli auth login` and authorize the `base` domain.
+5. Test access:
 
-**Two traps we hit (and how to avoid them):**
+   ```bash
+   python3 scripts/organize_jobs.py inspect --identity bot --link "<your-base-link>"
+   ```
 
-- Use **`--identity bot`** (application identity). User identity can't get the `base:record:retrieve` privilege a self-built app needs to list records.
-- Use a **base direct link** (`https://feishu.cn/base/<APP_TOKEN>?table=<TABLE_ID>`), not the wiki link — application identity has no wiki-read scope, so the base link skips that step.
+## Notes
 
-Full troubleshooting table is in [README.zh-CN.md](./README.zh-CN.md#踩坑复盘).
+- Prefer a direct Bitable link like `https://feishu.cn/base/<APP_TOKEN>?table=<TABLE_ID>`.
+- Use `--identity bot` for private Bitables read by a self-built app.
+- If the auto-suggested fields are wrong, pass `--title-field` and `--date-field` explicitly.
+- Records without a parseable value in the chosen date field are skipped.
+- Date values can be Feishu date fields, timestamps, or simple text dates like `YYYY-MM-DD`.
 
 ## Privacy
 
-- Your Feishu data stays between your own machine and Feishu's API — nothing is sent to any third party.
-- The Lark CLI stores its tokens locally on your machine.
-- The skill only reads the table you point it at.
-
-## Acknowledgements
-
-- [larksuite/cli](https://github.com/larksuite/cli) — the official Feishu CLI that powers data access
-- [zarazhangrui/follow-builders](https://github.com/zarazhangrui/follow-builders) — inspiration for the "paste-a-link + scheduled digest" Skill pattern
+- Data flows only between your machine and Feishu/Lark APIs.
+- Lark CLI tokens are stored locally by the official CLI.
+- The script only reads the Bitable you point it at.
 
 ## License
 

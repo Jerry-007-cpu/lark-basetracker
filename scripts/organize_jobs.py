@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-飞书岗位整理 —— 贴一个飞书多维表格链接，整理出某时间段内开放的岗位。
+飞书多维表格更新追踪 —— 贴一个飞书多维表格链接，整理出某时间段内更新过的记录。
 
 典型用法（一般由 agent 按 SKILL.md 自动调用，用户只需贴链接 + 说时间段）：
 
-  # 1) 只解析链接，看看是什么表、有哪些字段（含日期字段，便于挑"开放时间"）
-  python3 scripts/organize_jobs.py inspect --link "<飞书链接>"
+  # 1) 只解析链接，看看是什么表、有哪些字段（含日期字段，便于挑"更新时间"）
+  python3 scripts/organize_jobs.py inspect --identity bot --link "<飞书链接>"
 
-  # 2) 整理：按"开放时间"字段，筛出最近 7 天开放的岗位，输出到对话
-  python3 scripts/organize_jobs.py list --link "<飞书链接>" \
-      --date-field "开放时间" --days 7 --title-field "岗位名称"
+  # 2) 整理：按"更新时间"字段，筛出最近 7 天更新的记录，输出到对话
+  python3 scripts/organize_jobs.py list --identity bot --link "<飞书链接>" \
+      --date-field "更新时间" --days 7 --title-field "名称"
 
   # 3) 指定日期范围，并存成 md、同时推微信
-  python3 scripts/organize_jobs.py list --link "<链接>" \
-      --date-field "开放时间" --since 2026-06-01 --until 2026-06-28 \
-      --out 岗位清单.md --wechat
+  python3 scripts/organize_jobs.py list --identity bot --link "<链接>" \
+      --date-field "更新时间" --since 2026-06-01 --until 2026-06-28 \
+      --out updates.md --wechat
 
 依赖（本机 macOS）：
   - lark-cli  已完成飞书授权
@@ -33,7 +33,7 @@ from datetime import datetime, timedelta
 LARK_CLI_DEFAULT = "~/.local/lib/node_modules/@larksuite/cli/bin/lark-cli"
 
 # 调用身份：user=用户身份(user_access_token) / bot=应用身份(tenant_access_token)
-IDENTITY = "user"
+IDENTITY = "bot"
 
 
 # ---------- 通用 ----------
@@ -141,11 +141,14 @@ def fetch_fields(lark_cli, app_token, table_id):
 # ---------- 字段自适应匹配 ----------
 
 # 名称关键词（命中即加分），按优先级从高到低
-TITLE_KEYWORDS = ["岗位名称", "职位名称", "岗位", "职位", "职务", "岗位标题",
-                  "名称", "标题", "title", "position", "job", "role", "name"]
-DATE_KEYWORDS = ["开放时间", "开放日期", "发布时间", "发布日期", "上线时间", "上线日期",
-                 "开始时间", "投递开始", "更新时间", "投递截止", "截止时间", "截止日期",
-                 "时间", "日期", "date", "time", "open", "publish"]
+TITLE_KEYWORDS = ["名称", "标题", "主题", "事项", "项目", "记录", "岗位名称", "职位名称",
+                  "岗位", "职位", "职务", "岗位标题", "title", "name", "subject",
+                  "position", "job", "role"]
+DATE_KEYWORDS = ["更新时间", "最后更新时间", "修改时间", "更新日期", "变更时间",
+                 "发布时间", "发布日期", "创建时间", "创建日期", "开放时间", "开放日期",
+                 "上线时间", "上线日期", "开始时间", "截止时间", "截止日期", "投递开始",
+                 "投递截止", "时间", "日期", "date", "time", "updated", "modified",
+                 "created", "open", "publish"]
 
 DATE_TYPES = {5, 1001, 1002}   # 日期 / 创建时间 / 最后更新时间
 TEXTLIKE_TYPES = {1, 3, 15, 20}  # 文本 / 单选 / 超链接 / 公式
@@ -200,7 +203,7 @@ def auto_match_fields(fields_meta):
     if not title and names:
         title = names[0]
 
-    # —— 开放时间字段 ——
+    # —— 日期/更新时间字段 ——
     date_scored = []
     for f in fields_meta:
         name = f.get("field_name", "")
@@ -317,13 +320,13 @@ def cmd_inspect(args):
         tname = FIELD_TYPE_NAME.get(t, f"type{t}")
         mark = "  ← 主字段" if f.get("is_primary") else ""
         if t in DATE_TYPES:
-            mark += "  ← 可作为「开放时间」"
+            mark += "  ← 可作为「日期/更新时间」"
         print(f"  - {f['field_name']}（{tname}）{mark}")
 
     m = auto_match_fields(fields)
     print("\n—— 自动匹配建议 ——")
-    print(f"  岗位标题字段：{m['title'] or '(未识别，请手动指定)'}")
-    print(f"  开放时间字段：{m['date'] or '(未识别，请手动指定)'}")
+    print(f"  标题字段：{m['title'] or '(未识别，请手动指定)'}")
+    print(f"  日期/更新时间字段：{m['date'] or '(未识别，请手动指定)'}")
     if len(m["date_candidates"]) > 1:
         print(f"  其他候选日期字段：{', '.join(m['date_candidates'][1:])}")
     print("\n若建议不对，list 时用 --title-field / --date-field 覆盖即可。")
@@ -342,10 +345,10 @@ def cmd_list(args):
         m = auto_match_fields(fields_meta)
         if not args.title_field:
             args.title_field = m["title"] or ""
-            log(f"自动匹配岗位标题字段：{args.title_field or '(未识别)'}")
+            log(f"自动匹配标题字段：{args.title_field or '(未识别)'}")
         if not args.date_field:
             args.date_field = m["date"] or ""
-            log(f"自动匹配开放时间字段：{args.date_field or '(未识别)'}"
+            log(f"自动匹配日期/更新时间字段：{args.date_field or '(未识别)'}"
                 + (f"；其他候选：{', '.join(m['date_candidates'][1:])}"
                    if len(m["date_candidates"]) > 1 else ""))
 
@@ -360,14 +363,14 @@ def cmd_list(args):
         fields = r.get("fields", {})
         dms = to_epoch_ms(fields.get(date_field)) if date_field else None
         if date_field and dms is None:
-            continue  # 没有开放时间的跳过
+            continue  # 没有所选日期字段的跳过
         if since_ms is not None and dms is not None and dms < since_ms:
             continue
         if until_ms is not None and dms is not None and dms >= until_ms:
             continue
         kept.append((dms, fields))
 
-    # 按开放时间倒序
+    # 按日期/更新时间倒序
     kept.sort(key=lambda x: (x[0] is None, -(x[0] or 0)))
 
     text = render(args, kept, since_ms, until_ms)
@@ -388,9 +391,9 @@ def render(args, kept, since_ms, until_ms):
         a = ms_to_date(since_ms) if since_ms else "…"
         b = ms_to_date(until_ms - 1) if until_ms else "今天"
         rng = f"（{a} ~ {b}）"
-    lines = [f"📌 开放岗位整理{rng}　共 {len(kept)} 个"]
+    lines = [f"📌 表格更新整理{rng}　共 {len(kept)} 条"]
     if not kept:
-        lines.append("（该时间段内没有符合条件的岗位）")
+        lines.append("（该时间段内没有符合条件的记录）")
         return "\n".join(lines)
 
     title_field = args.title_field
@@ -398,11 +401,11 @@ def render(args, kept, since_ms, until_ms):
 
     for dms, fields in kept:
         title = norm(fields.get(title_field)) if title_field else ""
-        title = title or "(未命名岗位)"
+        title = title or "(未命名记录)"
         date_str = ms_to_date(dms) if dms else ""
         head = f"\n• {title}"
         if date_str:
-            head += f"　开放：{date_str}"
+            head += f"　日期：{date_str}"
         lines.append(head)
         keys = show if show else [k for k in fields.keys()
                                   if k not in (title_field, args.date_field)]
@@ -427,26 +430,26 @@ def push_wechat(args, text):
 # ---------- CLI ----------
 
 def build_parser():
-    p = argparse.ArgumentParser(description="飞书岗位整理")
+    p = argparse.ArgumentParser(description="飞书多维表格更新追踪")
     p.add_argument("--lark-cli", default=LARK_CLI_DEFAULT)
     sub = p.add_subparsers(dest="cmd", required=True)
 
     pi = sub.add_parser("inspect", help="解析链接、列出字段")
     pi.add_argument("--link", required=True)
-    pi.add_argument("--identity", choices=["user", "bot"], default="user",
+    pi.add_argument("--identity", choices=["user", "bot"], default="bot",
                     help="调用身份：user=用户身份 / bot=应用身份(tenant)")
     pi.set_defaults(func=cmd_inspect)
 
-    pl = sub.add_parser("list", help="整理某时间段开放的岗位")
+    pl = sub.add_parser("list", help="整理某时间段内更新的记录")
     pl.add_argument("--link", required=True)
-    pl.add_argument("--identity", choices=["user", "bot"], default="user",
+    pl.add_argument("--identity", choices=["user", "bot"], default="bot",
                     help="调用身份：user=用户身份 / bot=应用身份(tenant)")
     pl.add_argument("--table-id", default=None, help="链接没带 table 时手动指定")
-    pl.add_argument("--date-field", default="", help='用作"开放时间"的字段名')
+    pl.add_argument("--date-field", default="", help='用作"日期/更新时间"的字段名')
     pl.add_argument("--days", type=int, default=None, help="最近 N 天")
     pl.add_argument("--since", default=None, help="起始日期 YYYY-MM-DD")
     pl.add_argument("--until", default=None, help="结束日期 YYYY-MM-DD（含当天）")
-    pl.add_argument("--title-field", default="", help="岗位标题字段名")
+    pl.add_argument("--title-field", default="", help="记录标题字段名")
     pl.add_argument("--show-fields", default="", help="额外展示字段，逗号分隔；留空=全部")
     pl.add_argument("--out", default=None, help="写出 md 文件路径")
     pl.add_argument("--wechat", action="store_true", help="同时推送微信")

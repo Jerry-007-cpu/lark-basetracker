@@ -1,78 +1,100 @@
 ---
-name: feishu-jobs-digest
-description: 贴一个飞书多维表格链接，自动整理出某时间段内开放的岗位清单，直接在对话里显示，并可选推送到微信。适合校招/招聘场景：用户买了岗位表格、想知道"最近开放了哪些岗位"。触发词：飞书岗位整理、整理开放岗位、飞书表格招聘、岗位日报、贴个飞书链接。
+name: lark-basetracker
+description: 追踪飞书多维表格在某段时间内更新过的记录。用户贴一个 Feishu/Lark Bitable 链接后，按指定日期/更新时间字段筛选记录，生成清单；适合求职博主整理职位更新，也可用于项目、线索、内容排期等通用表格。触发词：飞书表格更新、多维表格更新、职位更新、表格追踪、basetracker、lark-basetracker。
 ---
 
-# 飞书岗位整理（贴链接即用）
+# lark-basetracker（飞书多维表格更新追踪）
 
-用户**只需要贴一个飞书多维表格链接**，就能整理出某段时间内开放的岗位。
-你（agent）按下面的流程对话式地完成，不要让用户手动改配置文件。
+用户只需要贴一个飞书多维表格链接，就能按时间窗口整理出更新过的记录。
 
-## 前置条件（首次，一次性）
+当前版本的“更新追踪”基于表格里已有的日期字段，例如 `更新时间`、`发布时间`、`开放时间`、`最后更新时间`。还没有实现快照对比或逐字段 diff。
 
-- 本机已安装 **lark-cli** 并完成飞书授权（见项目根 `CLAUDE.md`）。这是读飞书私有数据的唯一前提，绕不开。
-- 如需"推微信"：本机装 **QClaw** 并接入微信 ClawBot + `npm i -g @claw-lab/wxclawbot-cli`。不推微信则不需要。
+## 前置条件
 
-## 对话流程（你要做的）
+- 本机已安装 **lark-cli** 并完成飞书授权。
+- 目标多维表格已把自建应用加为协作者，应用开通 `bitable:app:readonly`。
+- 推荐使用 `--identity bot` 读取私有多维表格。
+- 如需推微信，本机需要安装并配置 QClaw / `wxclawbot`。不推微信则不需要。
 
-1. **用户贴链接**。先解析、看表里有哪些字段：
+## 对话流程
+
+1. **用户贴链接后，先检查字段：**
+
    ```bash
-   python3 scripts/organize_jobs.py inspect --link "<用户给的飞书链接>"
-   ```
-   输出会列出全部字段，并标出可作"开放时间"的日期字段。
-
-2. **反问用户两件事**（如果链接/上下文里看不出来）：
-   - 用哪个字段当「开放时间」（从上一步标了"← 可作为开放时间"的字段里挑）；
-   - 看哪段时间——"最近 7 天" / "最近 30 天" / 具体起止日期；
-   - 哪个字段是岗位标题（一般叫"岗位名称/职位"）。
-
-3. **整理岗位**并显示在对话里：
-   ```bash
-   python3 scripts/organize_jobs.py list --link "<链接>" \
-       --date-field "开放时间" --days 7 \
-       --title-field "岗位名称"
-   ```
-   - 时间段三选一：`--days N`（最近N天）/ `--since YYYY-MM-DD --until YYYY-MM-DD`（指定范围）；
-   - `--show-fields "地点,类型,投递链接"` 控制每个岗位展示哪些字段；留空=展示全部。
-
-4. **（可选）推微信 / 存文件**：
-   ```bash
-   python3 scripts/organize_jobs.py list --link "<链接>" --date-field "开放时间" \
-       --days 7 --title-field "岗位名称" --out 岗位清单.md --wechat
+   python3 scripts/organize_jobs.py inspect --identity bot --link "<用户给的飞书链接>"
    ```
 
-## 定时（可选）
+   输出会列出全部字段，并标出可作为日期/更新时间的字段。
 
-把第 3/4 步的命令固定好参数，挂到系统定时器，实现"每天自动整理 + 推微信"。
-做法见 `README.md`「定时任务」一节（launchd / cron）。注意 QClaw 需在该时间点开机在线。
+2. **如果上下文不明确，反问用户这些信息：**
 
-## 输出示例
+   - 用哪个字段作为更新时间/日期字段；
+   - 看哪段时间：最近 N 天，或具体起止日期；
+   - 哪个字段作为每条记录标题；
+   - 摘要里展示哪些字段。
 
-```
-📌 开放岗位整理（2026-06-21 ~ 今天）　共 2 个
+3. **生成更新摘要并显示在对话里：**
 
-• 产品经理　开放：2026-06-27
+   ```bash
+   python3 scripts/organize_jobs.py list --identity bot --link "<链接>" \
+       --date-field "更新时间" --days 7 \
+       --title-field "名称" \
+       --show-fields "状态,负责人,链接,备注"
+   ```
+
+   时间范围二选一：
+
+   - `--days N`：最近 N 天；
+   - `--since YYYY-MM-DD --until YYYY-MM-DD`：指定日期范围，结束日期包含当天。
+
+   展示字段：
+
+   - `--show-fields "字段1,字段2,字段3"`：只展示指定字段；
+   - 留空：展示除标题字段和日期字段以外的全部字段。
+
+4. **可选：写入文件或推微信：**
+
+   ```bash
+   python3 scripts/organize_jobs.py list --identity bot --link "<链接>" \
+       --date-field "更新时间" --days 7 \
+       --title-field "名称" \
+       --out updates.md
+   ```
+
+   ```bash
+   python3 scripts/organize_jobs.py list --identity bot --link "<链接>" \
+       --date-field "更新时间" --days 1 \
+       --title-field "岗位名称" \
+       --show-fields "公司,地点,投递链接,内推码" \
+       --wechat
+   ```
+
+## 求职博主场景建议
+
+如果用户是求职博主，优先把输出设计成“职位更新清单”：
+
+- 标题字段：岗位名称、职位、公司 + 岗位等；
+- 日期字段：更新时间、开放时间、发布时间；
+- 展示字段：公司、岗位、地点、批次、投递链接、内推码、截止时间。
+
+示例输出：
+
+```text
+📌 表格更新整理（2026-06-24 ~ 今天） 共 2 条
+
+• 产品经理 开放：2026-06-29
+    公司：某互联网公司
     地点：深圳
-    类型：实习
+    投递链接：https://example.com
 
-• 后端开发　开放：2026-06-26
+• 后端开发 开放：2026-06-28
+    公司：某科技公司
     地点：北京
-    类型：校招
 ```
-
-## 跨 agent 运行（Claude Code / Codex / OpenClaw 通用）
-
-这个 skill 是标准 SKILL.md + Python 脚本，逻辑不依赖某个特定 agent，**核心无需改动**。
-不同 agent 只有"安装位置"和"定时机制"两处外围差异：
-
-- **Claude Code**：放到 `~/.claude/skills/feishu-jobs-digest/`
-- **OpenClaw / QClaw**：放到其 skills 目录（或 `clawhub install`）
-- **Codex**：放到其技能/提示目录，由 Codex 读取 SKILL.md 后调用脚本
-
-脚本只要求宿主 agent 能跑 shell，并且本机有 lark-cli。定时则各家用各自的调度，或统一用系统 cron/launchd。
 
 ## 注意
 
-- 没有"开放时间"的记录会被跳过（避免噪音）。
-- 飞书日期字段是毫秒时间戳，脚本已自动转换；也兼容 `YYYY-MM-DD` 文本日期。
-- 是 wiki 链接也没关系，脚本会自动 `get_node` 解析出 app_token。
+- 没有所选日期字段，或日期无法解析的记录会被跳过。
+- 飞书日期字段是毫秒时间戳，脚本会自动转换。
+- 文本日期支持 `YYYY-MM-DD`、`YYYY-MM-DD HH:MM`、`YYYY/MM/DD` 等常见格式。
+- 如果 wiki 链接权限不够，要求用户提供 base 直链：`https://feishu.cn/base/<APP_TOKEN>?table=<TABLE_ID>`。

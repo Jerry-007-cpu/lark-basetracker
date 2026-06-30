@@ -1,107 +1,154 @@
 [English](./README.md) | **中文**
 
-# lark-jobtracker · 飞书岗位追踪
+# lark-basetracker · 飞书多维表格更新追踪
 
-贴一个飞书多维表格链接，自动整理出某段时间内开放的校招岗位，直接显示在对话里，并可选推送到微信。
+贴一个飞书多维表格链接，选择一个日期或更新时间字段，就能整理出某段时间内更新过的记录。
 
-**理念：** 很多人会买共享的飞书岗位表。这个 skill 把那张表变成一份"今天开放了什么"的清单，让你不漏掉任何新岗位。
+最初的使用场景是求职博主追踪职位更新：把买来的、共建的、自己维护的岗位表，变成一份“最近更新了什么职位”的清单。底层逻辑是通用的，所以也可以用于项目进度、线索表、内容排期、供应商库等任何带日期字段的表格。
 
-## 你会得到什么
+## 当前已经能做什么
 
-- 一份**某时间段内开放岗位**的清单（最近 7 天 / 最近 30 天 / 指定日期范围）
-- **字段自动识别**——每个人的表头都不一样，它也能认出"公司/岗位/开放时间"
-- 按开放时间倒序，带上你关心的字段（岗位、批次、招聘官网、内推码…）
-- 可选**推送到微信**，走腾讯官方的 ClawBot 通道（不是灰色协议，不封号）
-- 在 **Claude Code、Codex、OpenClaw** 里都能跑——标准 Skill，核心逻辑不用改
+- 通过飞书官方 Lark CLI 读取多维表格记录
+- 支持解析 `base/` 直链；权限允许时也能解析 `wiki/` 链接
+- 先列出表格字段，方便选择标题字段、日期字段和展示字段
+- 自动猜测标题字段和日期/更新时间字段
+- 按时间窗口筛选记录：
+  - 最近 N 天
+  - 指定起止日期
+- 在对话里输出一份 Markdown 风格摘要
+- 可选写入 Markdown 文件
+- 可选通过 `wxclawbot` 推送到微信
+
+## 现在还没有什么
+
+当前版本还没有做“快照对比”，也不会逐字段判断“这条记录哪里变了”。它的追踪方式是：使用表格里已有的日期字段来筛选记录，比如 `更新时间`、`发布时间`、`开放时间`、`最后更新时间`、`Last edited time`。
+
+也就是说，只要你的表里有一个可信的“创建时间 / 更新时间 / 发布时间 / 开放时间”字段，现在就能用。
+
+## 典型场景
+
+- 求职博主：整理最近 24 小时更新的职位，展示公司、岗位、城市、投递链接、内推码。
+- 岗位表维护者：每周生成一次本周新增或更新岗位清单。
+- 项目管理：列出本周更新过的任务，展示负责人、状态、备注。
+- 内容运营：整理本周发布或修改过的选题。
 
 ## 快速开始
 
-1. 在你的 AI agent 里安装此 skill（见[安装](#安装)）
-2. 贴上你的飞书表格链接，或直接说**"整理一下开放的岗位"**
-3. Agent 会以对话方式引导你完成，**不用手动改任何配置文件**
+1. 在你的 AI agent 里安装这个 skill。
+2. 贴上飞书多维表格链接。
+3. 说清楚你要看的时间范围和展示字段。
 
-Agent 会询问你：
+示例：
 
-- 看哪段时间（最近 7 天 / 最近 30 天 / 指定起止日期）
-- 清单里展示哪些字段
-- 要不要同时推到微信
+```text
+整理这张飞书表最近 3 天更新的职位，展示公司、岗位、地点、投递链接。
+```
 
-## 对话即可修改
+```text
+看一下这个多维表格最近 7 天更新的记录，标题用名称字段。
+```
 
-直接告诉你的 agent：
+Agent 通常会确认：
 
-- "只看最近 7 天"
-- "再加上内推码这个字段"
-- "每天早上 9 点推一次到微信"
+- 用哪个字段作为更新时间/日期字段
+- 用哪个字段作为每条记录的标题
+- 摘要里展示哪些字段
+- 看最近几天，还是指定起止日期
 
-## 工作原理
+## 常用命令
 
-1. 你贴一个飞书多维表格链接
-2. skill 解析出 `app_token` / `table_id`
-3. 通过飞书官方 [Lark CLI](https://github.com/larksuite/cli)，用**应用身份**拉取记录
-4. 按"开放时间"字段在你指定的时间段内筛选，自动匹配标题/日期列
-5. 在对话里输出清单——可选再存成 Markdown 文件、或推送微信
+先检查表格字段：
+
+```bash
+python3 scripts/organize_jobs.py inspect --identity bot --link "<你的飞书表格链接>"
+```
+
+整理最近 7 天更新的记录：
+
+```bash
+python3 scripts/organize_jobs.py list --identity bot --link "<你的飞书表格链接>" \
+  --date-field "更新时间" \
+  --days 7 \
+  --title-field "岗位名称" \
+  --show-fields "公司,地点,投递链接,内推码"
+```
+
+指定日期范围：
+
+```bash
+python3 scripts/organize_jobs.py list --identity bot --link "<你的飞书表格链接>" \
+  --date-field "更新时间" \
+  --since 2026-06-01 \
+  --until 2026-06-30 \
+  --title-field "名称"
+```
+
+写入 Markdown 文件：
+
+```bash
+python3 scripts/organize_jobs.py list --identity bot --link "<你的飞书表格链接>" \
+  --date-field "更新时间" \
+  --days 7 \
+  --title-field "名称" \
+  --out updates.md
+```
 
 ## 安装
 
 ### Claude Code
 
 ```bash
-git clone https://github.com/Jerry-007-cpu/lark-jobtracker.git ~/.claude/skills/lark-jobtracker
+git clone https://github.com/Jerry-007-cpu/lark-basetracker.git ~/.claude/skills/lark-basetracker
 ```
 
 ### OpenClaw
 
 ```bash
-git clone https://github.com/Jerry-007-cpu/lark-jobtracker.git ~/skills/lark-jobtracker
+git clone https://github.com/Jerry-007-cpu/lark-basetracker.git ~/skills/lark-basetracker
 ```
+
+### Codex
+
+把这个仓库放到 Codex 可读取的技能目录，或者作为普通项目保留；需要使用时让 Codex 读取 `SKILL.md` 后调用脚本即可。
 
 ## 系统要求
 
-- 一个 AI agent（Claude Code / Codex / OpenClaw）
-- 本机已安装并授权飞书官方 **Lark CLI**（`@larksuite/cli`）
-- 一个飞书自建应用，已开通 **`bitable:app:readonly`**（应用身份），并被加为目标表的协作者
+- 一个能运行 shell 命令的 AI agent
+- 本机已安装并授权飞书官方 Lark CLI（`@larksuite/cli`）
+- 一个飞书自建应用，已开通 `bitable:app:readonly`
+- 目标多维表格已把这个自建应用加为协作者
+- 可选：如果要推微信，需要安装并配置 `wxclawbot`
 
-> 和"读公开内容"的 skill 不同，飞书数据是**私有**的，所以一次性的飞书应用配置绕不开。几分钟搞定，见[首次配置](#首次配置飞书)。
+## 首次配置飞书
 
-## 首次配置（飞书）
+1. 安装 CLI：
 
-读飞书私有表需要一个有权限的应用，中间有几个坑。下面是**实测能用的配方**：
+   ```bash
+   npm install -g @larksuite/cli
+   ```
 
-1. 装 CLI：`npm install -g @larksuite/cli`
-2. 打开 <https://open.feishu.cn/app> → 你的应用 → **权限管理** → 开通 **`bitable:app:readonly`** → **版本管理与发布** → 创建并发布版本
-3. 飞书里打开你的表 → **分享 / 协作者** → 把你的应用加为可阅读
-4. `lark-cli auth login`（勾上 `base` 业务域，扫码授权）
-5. 拿一次表的 id：`python3 scripts/organize_jobs.py inspect --link "<你的链接>"`
+2. 打开 <https://open.feishu.cn/app>，进入你的应用，开通 `bitable:app:readonly`，然后创建并发布新版本。
+3. 在飞书里打开目标多维表格，把你的应用加为可阅读协作者。
+4. 运行 `lark-cli auth login`，授权 `base` 业务域。
+5. 测试读取：
 
-### 踩坑复盘
+   ```bash
+   python3 scripts/organize_jobs.py inspect --identity bot --link "<你的飞书表格链接>"
+   ```
 
-| 报错 | 原因 | 解法 |
-|------|------|------|
-| `need_user_authorization` | lark-cli 没授权 | `lark-cli auth login` 扫码 |
-| `token is required` | lark-cli 的 `api` 不读 URL 里的 `?query` | 脚本已改用 `--params` 传参 |
-| `base:record:retrieve` 用户身份读不了 | 用户身份拿不到这个 scope | **改用应用身份 `--identity bot`** |
-| `wiki:wiki:readonly` 应用身份缺失 | 应用身份没 wiki 读权限 | **用 base 直链**跳过 wiki 解析 |
+## 注意事项
 
-**两条铁律：**
-
-- 用 **`--identity bot`**（应用身份），别用默认用户身份
-- 用 **base 直链** `https://feishu.cn/base/<APP_TOKEN>?table=<TABLE_ID>`，别用 wiki 链接
-
-## 推送到微信（可选）
-
-走腾讯官方微信 ClawBot：装 [QClaw](https://qclaw.qq.com) 并扫码接入 → `npm install -g @claw-lab/wxclawbot-cli` → list 命令加 `--wechat`。限频约 7 条/5 分钟（日报一整条，没问题）。
+- 优先使用多维表格直链：`https://feishu.cn/base/<APP_TOKEN>?table=<TABLE_ID>`。
+- 读取私有表时优先使用 `--identity bot`。
+- 自动识别字段不准时，手动传 `--title-field` 和 `--date-field`。
+- 选择的日期字段为空或无法解析时，该记录会被跳过。
+- 日期字段可以是飞书日期字段、毫秒时间戳，或 `YYYY-MM-DD` 这类文本日期。
 
 ## 隐私
 
-- 你的飞书数据只在你自己的电脑和飞书 API 之间流动，不发给任何第三方
-- Lark CLI 的 token 存在本机
-- skill 只读你指定的那张表
-
-## 致谢
-
-- [larksuite/cli](https://github.com/larksuite/cli) —— 飞书官方 CLI，取数底座
-- [zarazhangrui/follow-builders](https://github.com/zarazhangrui/follow-builders) —— "贴链接即用 + 定时推送" 的 Skill 范式参考
+- 数据只在你的电脑和飞书 API 之间流动。
+- Lark CLI token 由官方 CLI 保存在本机。
+- 脚本只读取你指定的那张多维表格。
 
 ## 许可证
 
