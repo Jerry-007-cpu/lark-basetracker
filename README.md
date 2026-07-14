@@ -81,6 +81,48 @@ The agent checks the official `lark-cli`, then sends the official application se
 
 Never paste App Secrets or access tokens into chat.
 
+## Install
+
+### Codex, Claude Code, and OpenClaw
+
+Copy and run one command:
+
+```bash
+npx skills add Jerry-007-cpu/lark-basetracker -g
+```
+
+The installer detects or asks you to select an agent, then installs the complete Skill. Start a new conversation after installation.
+
+You can also send this request directly to your agent:
+
+```text
+Install this Skill for me: https://github.com/Jerry-007-cpu/lark-basetracker
+After installation, guide me through connecting the Feishu or Tencent Docs table I want to track.
+```
+
+`-g` installs the Skill for the current user so it is available across projects. Omit `-g` for a project-only installation.
+
+### QClaw
+
+You can send the same installation request to QClaw. Because QClaw's native Skill installer stores only one Markdown file, the agent needs to use this repository's QClaw adapter to install the bundled Python runtime as well.
+
+<details>
+<summary>Fallback for QClaw or installation problems</summary>
+
+Download the repository and run the matching adapter:
+
+```bash
+git clone https://github.com/Jerry-007-cpu/lark-basetracker.git
+cd lark-basetracker
+python3 scripts/install_agent.py --platform qclaw
+```
+
+Restart QClaw and review/enable the Skill afterward.
+
+To troubleshoot the universal installer for Codex, Claude Code, or OpenClaw, replace `qclaw` in the final command with `codex`, `claude-code`, or `openclaw`.
+
+</details>
+
 ## Supported agents
 
 | Agent | Status | Installation target |
@@ -89,31 +131,6 @@ Never paste App Secrets or access tokens into chat.
 | [Claude Code](https://code.claude.com/docs/en/skills) | Supported | User `.claude/skills` |
 | [OpenClaw](https://docs.openclaw.ai/skills) | Supported | User `.openclaw/skills` |
 | [QClaw](https://github.com/QuantumClaw/QClaw) | Supported | Shared QClaw Skill plus a separate runtime directory |
-
-The recommended installation request is:
-
-```text
-Install lark-basetracker from this repository and choose the correct adapter for my agent:
-https://github.com/Jerry-007-cpu/lark-basetracker
-```
-
-<details>
-<summary>Manual installation</summary>
-
-Clone the repository, then run the matching installer:
-
-```bash
-python3 scripts/install_agent.py --platform codex
-python3 scripts/install_agent.py --platform claude-code
-python3 scripts/install_agent.py --platform openclaw
-python3 scripts/install_agent.py --platform qclaw
-```
-
-QClaw's native installer stores only one Markdown file, so this installer also copies the Python runtime. Restart QClaw and review/enable the Skill afterward.
-
-Use `--scope project` for a project-only Codex, Claude Code, or OpenClaw installation.
-
-</details>
 
 ## Example output
 

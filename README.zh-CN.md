@@ -109,6 +109,48 @@ Agent 会检查飞书官方 `lark-cli`，并依次发给你应用配置和用户
 
 不要把 App Secret、Access Token 等密钥粘贴到对话中。
 
+## 安装
+
+### Codex、Claude Code、OpenClaw
+
+复制这一条命令即可：
+
+```bash
+npx skills add Jerry-007-cpu/lark-basetracker -g
+```
+
+安装器会识别或让你选择 Agent，并安装完整 Skill。安装后新开一个对话即可使用。
+
+不想自己运行命令，也可以直接把这句话发给 Agent：
+
+```text
+请帮我安装这个 Skill：https://github.com/Jerry-007-cpu/lark-basetracker
+安装完成后，引导我连接需要追踪的飞书或腾讯文档表格。
+```
+
+`-g` 表示安装到当前用户，所有项目都能使用。如果只想安装到当前项目，去掉 `-g`。
+
+### QClaw
+
+同样可以把上面的安装请求直接发给 QClaw。由于 QClaw 的原生 Skill 安装器只保存单个 Markdown 文件，Agent 需要使用本仓库的 QClaw 适配器，同时安装配套 Python 运行文件。
+
+<details>
+<summary>QClaw 或安装失败时的备用方法</summary>
+
+先下载仓库，再运行对应适配器：
+
+```bash
+git clone https://github.com/Jerry-007-cpu/lark-basetracker.git
+cd lark-basetracker
+python3 scripts/install_agent.py --platform qclaw
+```
+
+安装后重新启动 QClaw，并在 Skills 页面审核启用。
+
+Codex、Claude Code 或 OpenClaw 如需排查通用安装器，也可以把最后一条命令的平台改成 `codex`、`claude-code` 或 `openclaw`。
+
+</details>
+
 ## 支持的 Agent
 
 | Agent | 状态 | 安装位置 |
@@ -117,31 +159,6 @@ Agent 会检查飞书官方 `lark-cli`，并依次发给你应用配置和用户
 | [Claude Code](https://code.claude.com/docs/en/skills) | 已适配 | 用户级 `.claude/skills` |
 | [OpenClaw](https://docs.openclaw.ai/skills) | 已适配 | 用户级 `.openclaw/skills` |
 | [QClaw](https://github.com/QuantumClaw/QClaw) | 已适配 | QClaw 共享 Skill + 独立运行目录 |
-
-推荐直接把仓库链接发给 Agent：
-
-```text
-请从这个仓库安装 lark-basetracker，并按我的 Agent 平台选择正确的安装方式：
-https://github.com/Jerry-007-cpu/lark-basetracker
-```
-
-<details>
-<summary>查看手动安装方法</summary>
-
-先克隆仓库，然后运行对应安装器：
-
-```bash
-python3 scripts/install_agent.py --platform codex
-python3 scripts/install_agent.py --platform claude-code
-python3 scripts/install_agent.py --platform openclaw
-python3 scripts/install_agent.py --platform qclaw
-```
-
-QClaw 的原生 Skill 安装器只保存单个 Markdown 文件，因此本仓库的安装器还会复制所需 Python 运行文件。安装后重新启动 QClaw，并在 Skills 页面审核启用。
-
-如需只安装到当前项目，可为 Codex、Claude Code 或 OpenClaw 添加 `--scope project`。
-
-</details>
 
 ## 输出示例
 
