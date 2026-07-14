@@ -2,307 +2,168 @@
 
 <div align="center">
   <h1>lark-basetracker</h1>
-  <p><strong>Turn a job board into a publishable daily update — or track any Feishu/Lark Bitable.</strong></p>
-  <p>A Bitable update-tracking skill built for AI agents.</p>
-  <p>
-    <a href="./LICENSE">MIT License</a> ·
-    <a href="./SKILL.md">Skill Definition</a> ·
-    <a href="./config.example.json">Example Config</a>
-  </p>
+  <p><strong>Send a table link to your agent and ask what changed.</strong></p>
+  <p>Supports Feishu/Lark Base, Tencent Docs online tables, and CSV / TSV / XLSX files.</p>
 </div>
 
-## Table of Contents
+## What it does
 
-- [About](#about)
-- [Why This Exists](#why-this-exists)
-- [What It Can Do](#what-it-can-do)
-- [Use Cases](#use-cases)
-- [Agent Integration](#agent-integration)
-- [How It Works](#how-it-works)
-- [Quick Start](#quick-start)
-- [CLI Examples](#cli-examples)
-- [Installation](#installation)
-- [Feishu Setup](#feishu-setup)
-- [Configuration](#configuration)
-- [Project Structure](#project-structure)
-- [Notes](#notes)
-- [Privacy](#privacy)
-- [Roadmap](#roadmap)
-- [License](#license)
+`lark-basetracker` is a conversational Agent Skill that reads a table, detects its fields, and reports recently added, changed, or removed records.
 
-## About
+It is designed first for job-update creators:
 
-`lark-basetracker` helps an agent or operator summarize records created or updated within a time window from a Feishu/Lark Bitable.
+- Collect newly posted or reopened graduate, internship, and experienced roles
+- Extract company, role, location, deadline, and application links
+- Compare two table states and show the exact field changes
+- Produce a clean digest for communities, newsletters, or chat groups
 
-You paste a Bitable link, choose a date-like field such as `更新时间` or `Last edited time`, and get a readable Markdown digest of matching records.
+The same workflow also works for projects, leads, content calendars, vendors, and other tables.
 
-Its primary audience is career creators who maintain job-posting tables and need a quick answer to questions such as “what opened today?” or “what changed this week?”. The filtering and rendering flow is not tied to recruitment fields, so it also works with project trackers, lead lists, content calendars, vendor databases, and other tables with a reliable date field.
+## Use it through conversation
 
-The repository includes both an agent-facing [`SKILL.md`](./SKILL.md) and a command-line script. Agents that can load the skill and run local commands can inspect fields, choose a time window, and generate a digest from natural-language requests.
+After one-time installation and account setup, send a link and describe the result you want:
 
-## Why This Exists
+```text
+Here is my jobs table: <table link>
+Summarize roles added or updated in the last 7 days. Include company, role, location, and application link.
+```
 
-Many Bitables already contain the answer to "what changed this week", but the answer is buried inside raw rows. This project turns that table into a repeatable update feed without building a full sync system.
+```text
+What was added, edited, or removed since the last snapshot?
+<table link>
+```
 
-Instead of snapshot diffing, the current version uses an existing date or update field in the table. That keeps setup lightweight and makes it useful immediately for teams who already maintain reliable timestamps.
+The agent inspects fields, chooses date filtering or snapshot comparison, and formats the answer in the background. Normal users do not need to run commands.
 
-## What It Can Do
+## Data sources
 
-- Read records from a Feishu/Lark Bitable through the official Lark CLI
-- Resolve direct `base/` links and, when permissions allow, `wiki/` links
-- Inspect table fields before listing records
-- Auto-suggest a title field and a date/update field from common names
-- Filter by either `--days N` or an explicit `--since` / `--until` range
-- Render a clean Markdown digest for chat or downstream publishing
-- Optionally write the digest to a local Markdown file
-- Optionally send the digest to WeChat through `wxclawbot`
+| Source | Current capability |
+| --- | --- |
+| Feishu/Lark Base link | Read online with the signed-in user's existing permissions |
+| Tencent Docs SmartSheet | Read tables, fields, and records through the official MCP server |
+| Tencent Docs regular table | Read through the official MCP server and recover table structure |
+| CSV / TSV / XLSX | Read locally without an online account |
+| Two files or saved states | Compare additions, field-level edits, and removals |
 
-## Use Cases
+View-only permission is a supported primary scenario. The Skill does not bypass owner-defined viewing, download, or membership restrictions.
 
-### Career content creation (primary)
+## Is a time field required?
 
-- Collect new or reopened campus, internship, and experienced-hire roles each day
-- Extract company, role, city, hiring batch, deadline, and application link from a job board
-- Produce an update list ready for a community, newsletter, Feishu document, or WeChat
+No.
 
-### Any Bitable
+With a time field, the Skill can answer requests such as “today,” “this week,” or “the last 7 days.” Useful fields include `Created Time`, `Last Modified Time`, `Published Time`, and `Open Time`.
 
-- Project management: tasks updated this week and their owners
-- Lead tracking: recently created or contacted prospects
-- Content operations: topics recently published, edited, or scheduled
-- Vendor management: recently updated quotes, statuses, or documents
+Without a time field, the Skill saves a complete state and compares it with the next read. It reports added records, removed records, and exact before/after field values. Snapshot comparison works best with a stable unique field such as a job ID, record number, application URL, or provider record ID.
 
-The same workflow can be reused whenever the table has a trustworthy date field such as `Last modified time`, `Created time`, `Published at`, or `Open date`.
+## Tencent Docs
 
-## Agent Integration
+The repository includes its own client for the [official Tencent Docs MCP endpoint](https://developer.cloud.tencent.com/mcp/server/11803). The host agent does not need to implement MCP calls itself.
 
-This repository separates a generic tracking script from its `SKILL.md` instructions. Compatibility depends less on the agent brand than on whether the runtime can load a skill, run Python, and access an authorized `lark-cli` installation.
+For first-time setup:
 
-| Agent / platform | Current integration | Status |
+1. Get a personal token from the [official Tencent Docs authorization page](https://docs.qq.com/open/auth/mcp.html).
+2. Ask the agent to securely configure Tencent Docs for `lark-basetracker`.
+3. The agent starts a hidden-input prompt so the token does not appear in chat or shell history.
+
+The client initializes MCP, discovers the live tools and JSON schemas, then uses the appropriate read-only SmartSheet or content tools.
+
+Error `400006` means the token needs to be checked or renewed. Error `400007` means the Tencent Docs account lacks the required VIP capability. Exported XLSX, CSV, or TSV remains available as a fallback.
+
+## First Feishu connection
+
+Ask your agent:
+
+```text
+Set up the first Feishu connection for lark-basetracker.
+```
+
+The agent checks the official `lark-cli`, then sends the official application setup and user authorization links. The default identity is the signed-in user, so a table only needs to be viewable by that user; the app does not need to be added as a collaborator on every table.
+
+Never paste App Secrets or access tokens into chat.
+
+## Supported agents
+
+| Agent | Status | Installation target |
 | --- | --- | --- |
-| Codex | Install in the local skills directory; load `SKILL.md` and run the script | Ready |
-| Claude Code | Install in the local skills directory; load `SKILL.md` and run the script | Ready |
-| [OpenClaw](https://docs.openclaw.ai/skills) | Install as a Git Skill and run the local script | Ready |
-| [QClaw](https://github.com/QuantumClaw/QClaw) and other local agents | Import the repository or skill and provide Python, shell, and `lark-cli` | Reusable; installation varies |
-| [Feishu Aily](https://www.feishu.cn/content/s855fpkr) | Wrap the tracker as an Aily operation, connector, or HTTP service | No native adapter is included yet |
+| [Codex](https://learn.chatgpt.com/docs/build-skills.md) | Supported | User `.agents/skills` |
+| [Claude Code](https://code.claude.com/docs/en/skills) | Supported | User `.claude/skills` |
+| [OpenClaw](https://docs.openclaw.ai/skills) | Supported | User `.openclaw/skills` |
+| [QClaw](https://github.com/QuantumClaw/QClaw) | Supported | Shared QClaw Skill plus a separate runtime directory |
 
-> `SKILL.md` tells the agent how to operate the tracker. Data access is performed by the local script through the official Lark CLI. Runtimes that cannot execute local commands need a service adapter.
-
-## How It Works
-
-1. Parse the Bitable link and resolve `app_token` plus `table_id`.
-2. Inspect fields and identify likely title/date candidates.
-3. Fetch records through Lark OpenAPI via `lark-cli`.
-4. Normalize date values and filter records by the requested window.
-5. Render a digest that is easy to paste into chat, docs, or WeChat.
-
-Example output:
+The recommended installation request is:
 
 ```text
-📌 Bitable updates (2026-06-24 ~ 2026-06-30) total 2
+Install lark-basetracker from this repository and choose the correct adapter for my agent:
+https://github.com/Jerry-007-cpu/lark-basetracker
+```
 
-• Product Manager  Date: 2026-06-29
+<details>
+<summary>Manual installation</summary>
+
+Clone the repository, then run the matching installer:
+
+```bash
+python3 scripts/install_agent.py --platform codex
+python3 scripts/install_agent.py --platform claude-code
+python3 scripts/install_agent.py --platform openclaw
+python3 scripts/install_agent.py --platform qclaw
+```
+
+QClaw's native installer stores only one Markdown file, so this installer also copies the Python runtime. Restart QClaw and review/enable the Skill afterward.
+
+Use `--scope project` for a project-only Codex, Claude Code, or OpenClaw installation.
+
+</details>
+
+## Example output
+
+```text
+📌 Table snapshot changes  Added 1 · Changed 1 · Removed 0
+
+Added
+• Data Product Manager
     Company: Example Tech
-    City: Shenzhen
-    Apply Link: https://example.com
+    Location: Shenzhen
 
-• Backend Engineer  Date: 2026-06-28
-    Company: Example Cloud
-    City: Beijing
+Changed
+• Backend Engineer
+    Deadline: 2026-07-20 → 2026-07-31
 ```
 
-## Quick Start
+## Architecture
 
-1. Install the repository in your agent's skills directory, or run the script directly.
-2. Make sure `lark-cli` is installed and authorized.
-3. Add your Feishu app as a collaborator on the target Bitable.
-4. Inspect fields:
+Provider access and table analysis are separated:
 
-```bash
-python3 scripts/organize_jobs.py inspect --identity bot --link "<your-base-link>"
-```
+- Feishu provider: Base/Wiki parsing, fields, and records
+- Tencent Docs provider: MCP initialization, tool discovery, and online reads
+- File provider: CSV, TSV, and XLSX
+- Shared core: field detection, date filtering, state persistence, field-level diffing, and rendering
 
-5. Generate an update digest:
+All supported agents therefore share the same tracking behavior and differ only in installation and runtime layout.
 
-```bash
-python3 scripts/organize_jobs.py list --identity bot --link "<your-base-link>" \
-  --date-field "更新时间" \
-  --days 7 \
-  --title-field "岗位名称" \
-  --show-fields "公司,地点,投递链接,内推码"
-```
+## Current limitations
 
-If you are using this through an AI agent, a natural-language prompt is usually enough:
-
-```text
-Summarize records updated in the last 7 days.
-```
-
-```text
-整理这张飞书表最近 3 天更新的职位，展示公司、岗位、地点、投递链接。
-```
-
-## CLI Examples
-
-Inspect a table and list fields:
-
-```bash
-python3 scripts/organize_jobs.py inspect --identity bot --link "<your-base-link>"
-```
-
-List records updated in the last 7 days:
-
-```bash
-python3 scripts/organize_jobs.py list --identity bot --link "<your-base-link>" \
-  --date-field "更新时间" \
-  --days 7 \
-  --title-field "岗位名称" \
-  --show-fields "公司,地点,投递链接,内推码"
-```
-
-Use an explicit date range:
-
-```bash
-python3 scripts/organize_jobs.py list --identity bot --link "<your-base-link>" \
-  --date-field "更新时间" \
-  --since 2026-06-01 \
-  --until 2026-06-30 \
-  --title-field "名称"
-```
-
-Write the digest to a file:
-
-```bash
-python3 scripts/organize_jobs.py list --identity bot --link "<your-base-link>" \
-  --date-field "更新时间" \
-  --days 7 \
-  --title-field "名称" \
-  --out updates.md
-```
-
-Push the digest to WeChat:
-
-```bash
-python3 scripts/organize_jobs.py list --identity bot --link "<your-base-link>" \
-  --date-field "更新时间" \
-  --days 1 \
-  --title-field "岗位名称" \
-  --show-fields "公司,地点,投递链接,内推码" \
-  --wechat
-```
-
-## Installation
-
-### Codex
-
-```bash
-git clone https://github.com/Jerry-007-cpu/lark-basetracker.git ~/.codex/skills/lark-basetracker
-```
-
-### Claude Code
-
-```bash
-git clone https://github.com/Jerry-007-cpu/lark-basetracker.git ~/.claude/skills/lark-basetracker
-```
-
-### OpenClaw
-
-```bash
-openclaw skills install git:Jerry-007-cpu/lark-basetracker@main
-```
-
-### QClaw / Other Local Agents
-
-Import the repository into the platform's supported skills directory and make sure the agent can execute `python3` and `lark-cli`. Skill locations and installation commands vary by platform.
-
-### Feishu Aily
-
-This repository does not yet include a directly importable Aily adapter. Aily uses Feishu's cloud skill runtime, while the current tracker depends on local Python and `lark-cli`. Integration requires wrapping the script as an operation, connector, or HTTP service that Aily can call.
-
-### Direct Script Usage
-
-Requirements:
-
-- Python 3
-- `@larksuite/cli`
-- A Feishu/Lark app with `bitable:app:readonly`
-- The app added as a collaborator on the target Bitable
-- Optional: `wxclawbot` for WeChat delivery
-
-## Feishu Setup
-
-1. Install the official CLI:
-
-```bash
-npm install -g @larksuite/cli
-```
-
-2. Open [Feishu Open Platform](https://open.feishu.cn/app), select your app, enable `bitable:app:readonly`, then publish a new version.
-3. Open the target Bitable and add the app as a collaborator with read access.
-4. Authorize the CLI:
-
-```bash
-lark-cli auth login
-```
-
-5. Verify access:
-
-```bash
-python3 scripts/organize_jobs.py inspect --identity bot --link "<your-base-link>"
-```
-
-## Configuration
-
-[`config.example.json`](./config.example.json) shows common values an agent or downstream workflow may reuse. The current script does not load this file automatically; direct runs still use command-line arguments.
-
-- `app_token`: Bitable app token
-- `table_id`: target table ID
-- `date_field`: field used for filtering updates
-- `title_field`: field used as each record title
-- `show_fields`: fields included in the digest
-- `wechat_to`: optional WeChat target
-- `max_items`: reserved output cap for downstream workflows
-- `lark_cli`: path to the installed Lark CLI
-- `wxclawbot`: command used for WeChat delivery
-
-## Project Structure
-
-```text
-.
-├── README.md
-├── README.zh-CN.md
-├── SKILL.md
-├── config.example.json
-└── scripts/
-    └── organize_jobs.py
-```
-
-## Notes
-
-- Prefer a direct Bitable URL like `https://feishu.cn/base/<APP_TOKEN>?table=<TABLE_ID>`.
-- Use `--identity bot` for private Bitables read by a self-built Feishu app.
-- If auto-detected fields are wrong, pass `--title-field` and `--date-field` explicitly.
-- Records without a parseable value in the selected date field are skipped.
-- Supported text date formats include `YYYY-MM-DD`, `YYYY-MM-DD HH:MM`, `YYYY-MM-DD HH:MM:SS`, and `YYYY/MM/DD`.
-- This version does not compare two snapshots or compute field-level diffs.
-- “Updated” means the value of your selected date field; the tracker does not independently detect changed cells.
+- Tencent Docs document types return different structures. SmartSheet has the strongest support; regular tables depend on structured content returned by official `get_content`.
+- Snapshot comparison should use a stable unique field. Duplicate names and reordered rows are less reliable without one.
+- XLSX requires `openpyxl`; CSV and TSV use the Python standard library.
+- Feishu `.base` backup files are not currently parsed.
+- Feishu Aily and publishing to WeChat channels are outside the current adapter set.
 
 ## Privacy
 
-- By default, data flows only between your machine and Feishu/Lark APIs.
-- Lark CLI credentials are stored locally by the official CLI.
-- The script only reads the Bitable you explicitly point it to.
-- Only when `--wechat` is explicitly used is the generated digest passed to `wxclawbot` for delivery.
+- Operations are read-only by default.
+- Feishu data flows between the local agent, `lark-cli`, and Feishu APIs.
+- Tencent Docs tokens stay in an environment variable or a local `0600` token file.
+- Snapshot states are local JSON files at paths selected by the user.
+- Never commit tokens, App Secrets, or state files containing real business data.
 
-## Roadmap
+## Development checks
 
-- Feishu Aily / internal Feishu agent connector or service adapter
-- Publish to a skill registry such as ClawHub for one-command QClaw / OpenClaw installation
-- Structured JSON output for more agents and automation workflows
-- Scheduled runs and a reusable “daily job updates” template
-- Snapshot comparison and field-level change summaries
-- More publishing channels and career-content templates
+```bash
+python3 -B -m unittest discover -s tests -v
+python3 -B -m py_compile scripts/organize_jobs.py scripts/basetracker/*.py
+```
 
 ## License
 
-Distributed under the MIT License. See [LICENSE](./LICENSE) for details.
+[MIT](./LICENSE)

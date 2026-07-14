@@ -1,0 +1,4 @@
+interface:
+  display_name: "Table Update Tracker"
+  short_description: "Track changes in Feishu and Tencent Docs tables"
+  default_prompt: "Use $lark-basetracker to summarize recent changes in this table."

@@ -1,113 +1,145 @@
 ---
 name: lark-basetracker
-description: 追踪飞书多维表格在某段时间内更新过的记录。用户贴一个 Feishu/Lark Bitable 链接后，按指定日期/更新时间字段筛选记录，生成清单；适合求职博主整理职位更新，也可用于项目、线索、内容排期等通用表格。触发词：飞书表格更新、多维表格更新、职位更新、表格追踪、basetracker、lark-basetracker。
+description: 通过自然语言追踪飞书多维表格、腾讯文档在线表格或 CSV/TSV/XLSX 的新增、修改和删除记录。支持按创建/更新时间筛选，也支持在没有时间字段时保存并比较两次快照。适合求职岗位更新、项目、线索、内容排期等表格；当用户发送 Feishu/Lark Base、docs.qq.com 链接或表格文件并询问最近更新、变化或职位清单时使用。
 ---
 
-# lark-basetracker（飞书多维表格更新追踪）
+# lark-basetracker
 
-用户只需要贴一个飞书多维表格链接，就能按时间窗口整理出更新过的记录。
+让用户只通过对话完成操作。把字段检查、命令执行和格式整理留在后台，不要求普通用户复制 Python、Shell 或 `lark-cli` 命令。
 
-当前版本的“更新追踪”基于表格里已有的日期字段，例如 `更新时间`、`发布时间`、`开放时间`、`最后更新时间`。还没有实现快照对比或逐字段 diff。
+## 选择数据来源
 
-## 运行方式与平台边界
+- 飞书 `base/` 或 `wiki/` 链接：使用飞书用户身份在线读取。
+- 腾讯文档 `docs.qq.com` 链接：使用仓库内置的腾讯文档 MCP 客户端在线读取。
+- CSV、TSV、XLSX：直接读取本地文件。
+- 用户询问“两次之间改了什么”或表中没有时间字段：使用持久快照比较。
 
-- 这是一个 `SKILL.md` + 本地 Python 脚本的 Skill，适用于能够读取本目录并执行 Shell 命令的 Agent。
-- Codex、Claude Code、OpenClaw、QClaw 或其他本地 Agent 都可以复用同一条对话流程；安装位置由各平台决定。
-- 本仓库尚未提供飞书智能伙伴 Aily 的原生适配。如果当前运行环境是 Aily，应提示需要先把脚本封装为 Aily 可调用的操作、连接器或 HTTP 服务，不要假装已经完成原生接入。
-- 如果 Agent 无法访问本机 `lark-cli` 或无法执行 Python，本 Skill 不能直接运行。
+只执行只读操作。除非用户明确要求，否则不要写入在线表格、推送消息或创建文件。
 
-## 前置条件
+## 对话规则
 
-- 本机已安装 **lark-cli** 并完成飞书授权。
-- 目标多维表格已把自建应用加为协作者，应用开通 `bitable:app:readonly`。
-- 推荐使用 `--identity bot` 读取私有多维表格。
-- 如需推微信，本机需要安装并配置 `wxclawbot`。不推微信则不需要。
+1. 从用户消息提取链接或文件、时间范围、展示字段，以及“新增/修改/发布/开放”的含义。
+2. 自动检查字段。只有多个时间字段代表不同业务含义且无法判断时，问一个简短问题。
+3. 优先输出可直接阅读或转发的清单，不输出调试日志。
+4. 用户已给出足够信息时直接执行，不重复确认。
+5. 不要求用户提供编辑权限。用户本人的查看权限是正常主流程。
+6. 不在聊天正文中索取 App Secret、Access Token 或腾讯文档 Token。
 
-## 对话流程
+## 飞书在线读取
 
-1. **用户贴链接后，先检查字段：**
+默认使用 `user` 身份。后台检查字段：
 
-   ```bash
-   python3 scripts/organize_jobs.py inspect --identity bot --link "<用户给的飞书链接>"
-   ```
-
-   输出会列出全部字段，并标出可作为日期/更新时间的字段。
-
-2. **如果上下文不明确，反问用户这些信息：**
-
-   - 用哪个字段作为更新时间/日期字段；
-   - 看哪段时间：最近 N 天，或具体起止日期；
-   - 哪个字段作为每条记录标题；
-   - 摘要里展示哪些字段。
-
-3. **生成更新摘要并显示在对话里：**
-
-   ```bash
-   python3 scripts/organize_jobs.py list --identity bot --link "<链接>" \
-       --date-field "更新时间" --days 7 \
-       --title-field "名称" \
-       --show-fields "状态,负责人,链接,备注"
-   ```
-
-   时间范围二选一：
-
-   - `--days N`：最近 N 天；
-   - `--since YYYY-MM-DD --until YYYY-MM-DD`：指定日期范围，结束日期包含当天。
-
-   展示字段：
-
-   - `--show-fields "字段1,字段2,字段3"`：只展示指定字段；
-   - 留空：展示除标题字段和日期字段以外的全部字段。
-
-4. **可选：写入文件或推微信：**
-
-   ```bash
-   python3 scripts/organize_jobs.py list --identity bot --link "<链接>" \
-       --date-field "更新时间" --days 7 \
-       --title-field "名称" \
-       --out updates.md
-   ```
-
-   ```bash
-   python3 scripts/organize_jobs.py list --identity bot --link "<链接>" \
-       --date-field "更新时间" --days 1 \
-       --title-field "岗位名称" \
-       --show-fields "公司,地点,投递链接,内推码" \
-       --wechat
-   ```
-
-## 求职博主场景建议
-
-如果用户是求职博主，优先把输出设计成“职位更新清单”：
-
-- 标题字段：岗位名称、职位、公司 + 岗位等；
-- 日期字段：更新时间、开放时间、发布时间；
-- 展示字段：公司、岗位、地点、批次、投递链接、内推码、截止时间。
-
-示例输出：
-
-```text
-📌 表格更新整理（2026-06-24 ~ 今天） 共 2 条
-
-• 产品经理 开放：2026-06-29
-    公司：某互联网公司
-    地点：深圳
-    投递链接：https://example.com
-
-• 后端开发 开放：2026-06-28
-    公司：某科技公司
-    地点：北京
+```bash
+python3 scripts/organize_jobs.py inspect --identity user --link "<飞书链接>"
 ```
 
-适合直接理解的用户表达包括：
+按时间字段整理：
 
-- “整理这张表今天新增的岗位，带上公司、地点和投递链接。”
-- “把最近 7 天开放的校招岗位做成一份可以发社群的清单。”
-- “看看这张多维表本周有哪些更新，不是岗位表也可以。”
+```bash
+python3 scripts/organize_jobs.py list --identity user --link "<飞书链接>" \
+  --date-field "<时间字段>" --days 7 \
+  --title-field "<标题字段>" --show-fields "<字段1,字段2>"
+```
 
-## 注意
+字段语义优先级：
 
-- 没有所选日期字段，或日期无法解析的记录会被跳过。
-- 飞书日期字段是毫秒时间戳，脚本会自动转换。
-- 文本日期支持 `YYYY-MM-DD`、`YYYY-MM-DD HH:MM`、`YYYY/MM/DD` 等常见格式。
-- 如果 wiki 链接权限不够，要求用户提供 base 直链：`https://feishu.cn/base/<APP_TOKEN>?table=<TABLE_ID>`。
+- “新增”使用 `创建时间`。
+- “修改/更新”使用 `最后更新时间` 或 `更新时间`。
+- “发布”使用 `发布时间`。
+- “开放”使用 `开放时间`。
+
+首次使用时检查 `lark-cli --version`。缺少时先说明并取得同意，再安装飞书官方 CLI。随后用 `lark-cli config init --new` 配置应用，并用 `lark-cli auth login --domain base --no-wait --json` 发起用户授权。把官方返回的验证链接原样交给用户，不重写链接，不在用户看到链接前阻塞等待。
+
+## 腾讯文档在线读取
+
+腾讯文档使用官方 MCP 地址 `https://docs.qq.com/openapi/mcp`。先检查实时工具定义：
+
+```bash
+python3 scripts/organize_jobs.py tencent-tools
+```
+
+检查在线表格字段：
+
+```bash
+python3 scripts/organize_jobs.py tencent-inspect --link "<docs.qq.com 链接>"
+```
+
+整理在线表格：
+
+```bash
+python3 scripts/organize_jobs.py tencent-list --link "<docs.qq.com 链接>" \
+  --days 7 --show-fields "<字段1,字段2>"
+```
+
+内置客户端会执行 MCP 初始化、`tools/list` 和 `tools/call`，并根据实时 JSON Schema 组装参数。智能表格优先调用 `smartsheet.list_tables`、`smartsheet.list_fields`、`smartsheet.list_records`；普通在线表格通过 `get_content` 读取结构化内容。
+
+如果没有 Token，引导用户打开 `https://docs.qq.com/open/auth/mcp.html` 获取个人 Token，然后在本机终端运行：
+
+```bash
+python3 scripts/configure_tencent_docs.py
+```
+
+该脚本使用隐藏输入并保存到权限为 `0600` 的本地文件。也可由运行环境设置 `TENCENT_DOCS_TOKEN`。不要让用户把 Token 发到聊天中。
+
+出现 `400006` 时重新授权；出现 `400007` 时说明腾讯文档账户缺少对应 VIP 能力。在线读取失败时，回退到用户上传的 XLSX、CSV 或 TSV，不声称能够绕过查看、下载或会员权限。
+
+## 本地文件与快照比较
+
+按时间字段整理单份文件：
+
+```bash
+python3 scripts/organize_jobs.py snapshot --file "<文件>" \
+  --date-field "<时间字段>" --days 7
+```
+
+没有时间字段时，保存当前完整状态：
+
+```bash
+python3 scripts/organize_jobs.py snapshot --file "<文件>" \
+  --key-field "<稳定唯一字段>" --state-out "<状态文件.json>" --state-only
+```
+
+下次读取时比较并更新同一个状态文件：
+
+```bash
+python3 scripts/organize_jobs.py snapshot --file "<新文件>" \
+  --key-field "<稳定唯一字段>" \
+  --previous-state "<状态文件.json>" --state-out "<状态文件.json>"
+```
+
+也可直接比较两份导出文件：
+
+```bash
+python3 scripts/organize_jobs.py diff --before "<旧文件>" --after "<新文件>" \
+  --key-field "<稳定唯一字段>" --title-field "<标题字段>"
+```
+
+快照比较不要求时间字段。它会分别列出新增、逐字段修改和删除记录。优先使用平台记录 ID、职位 ID、编号、投递链接等稳定唯一字段；标题可能变化时不要把标题当主键。没有稳定字段时可暂用标题，但要向用户说明重名和改名可能影响判断。
+
+飞书或腾讯文档在线数据也支持 `--state-out` 和 `--previous-state`，使用方式相同。
+
+## 输出
+
+求职场景默认标题为“岗位更新”，优先展示公司、岗位、地点、批次、截止时间、投递链接和内推码。其他表格根据用户措辞选择字段。
+
+示例：
+
+```text
+📌 表格快照变化　新增 1 · 修改 1 · 删除 0
+
+新增记录
+• 数据产品经理
+    公司：某科技公司
+    地点：深圳
+
+修改记录
+• 后端开发
+    截止时间：2026-07-20 → 2026-07-31
+```
+
+## 平台边界
+
+- Codex、Claude Code、OpenClaw：安装完整 Skill 目录后运行本仓库脚本。
+- QClaw：其 Skill 安装器只保存 Markdown；必须使用 `scripts/install_agent.py --platform qclaw` 同时安装运行文件。
+- XLSX 读取需要 `openpyxl`；缺少时先取得用户同意再安装，或请用户改发 CSV。
+- 当前不解析飞书 `.base` 备份文件。

@@ -1,14 +1,11 @@
 {
-  "app_token": "把这里换成多维表格的 app_token（base/xxx 或 wiki 解析出的 obj_token）",
-  "table_id": "把这里换成 table_id（URL 里的 ?table=tblXXXX）",
-
-  "date_field": "更新时间",
-  "title_field": "名称",
-  "show_fields": ["状态", "负责人", "链接", "备注"],
-
-  "wechat_to": "",
-
-  "max_items": 30,
-  "lark_cli": "~/.local/lib/node_modules/@larksuite/cli/bin/lark-cli",
-  "wxclawbot": "wxclawbot"
+  "lark_cli": "lark-cli",
+  "lark_identity": "user",
+  "tencent_docs_mcp_url": "https://docs.qq.com/openapi/mcp",
+  "tencent_docs_token_env": "TENCENT_DOCS_TOKEN",
+  "tencent_docs_token_file": "~/.config/lark-basetracker/tencent_docs_token",
+  "default_date_field": "最后更新时间",
+  "default_title_field": "岗位名称",
+  "default_show_fields": ["公司", "地点", "投递链接"],
+  "snapshot_state_dir": "~/.local/share/lark-basetracker/states"
 }
