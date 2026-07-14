@@ -2,7 +2,8 @@
 
 <div align="center">
   <h1>lark-basetracker</h1>
-  <p>Turn any Feishu/Lark Bitable into a clean "what changed recently" digest.</p>
+  <p><strong>Turn a job board into a publishable daily update — or track any Feishu/Lark Bitable.</strong></p>
+  <p>A Bitable update-tracking skill built for AI agents.</p>
   <p>
     <a href="./LICENSE">MIT License</a> ·
     <a href="./SKILL.md">Skill Definition</a> ·
@@ -15,6 +16,8 @@
 - [About](#about)
 - [Why This Exists](#why-this-exists)
 - [What It Can Do](#what-it-can-do)
+- [Use Cases](#use-cases)
+- [Agent Integration](#agent-integration)
 - [How It Works](#how-it-works)
 - [Quick Start](#quick-start)
 - [CLI Examples](#cli-examples)
@@ -24,15 +27,18 @@
 - [Project Structure](#project-structure)
 - [Notes](#notes)
 - [Privacy](#privacy)
+- [Roadmap](#roadmap)
 - [License](#license)
 
 ## About
 
-`lark-basetracker` helps an agent or operator summarize records updated within a time window from a Feishu/Lark Bitable.
+`lark-basetracker` helps an agent or operator summarize records created or updated within a time window from a Feishu/Lark Bitable.
 
 You paste a Bitable link, choose a date-like field such as `更新时间` or `Last edited time`, and get a readable Markdown digest of matching records.
 
-The first target scenario is job-posting tracking for career creators, but the workflow is generic enough for project trackers, lead lists, content calendars, vendor databases, and other operational tables.
+Its primary audience is career creators who maintain job-posting tables and need a quick answer to questions such as “what opened today?” or “what changed this week?”. The filtering and rendering flow is not tied to recruitment fields, so it also works with project trackers, lead lists, content calendars, vendor databases, and other tables with a reliable date field.
+
+The repository includes both an agent-facing [`SKILL.md`](./SKILL.md) and a command-line script. Agents that can load the skill and run local commands can inspect fields, choose a time window, and generate a digest from natural-language requests.
 
 ## Why This Exists
 
@@ -50,6 +56,37 @@ Instead of snapshot diffing, the current version uses an existing date or update
 - Render a clean Markdown digest for chat or downstream publishing
 - Optionally write the digest to a local Markdown file
 - Optionally send the digest to WeChat through `wxclawbot`
+
+## Use Cases
+
+### Career content creation (primary)
+
+- Collect new or reopened campus, internship, and experienced-hire roles each day
+- Extract company, role, city, hiring batch, deadline, and application link from a job board
+- Produce an update list ready for a community, newsletter, Feishu document, or WeChat
+
+### Any Bitable
+
+- Project management: tasks updated this week and their owners
+- Lead tracking: recently created or contacted prospects
+- Content operations: topics recently published, edited, or scheduled
+- Vendor management: recently updated quotes, statuses, or documents
+
+The same workflow can be reused whenever the table has a trustworthy date field such as `Last modified time`, `Created time`, `Published at`, or `Open date`.
+
+## Agent Integration
+
+This repository separates a generic tracking script from its `SKILL.md` instructions. Compatibility depends less on the agent brand than on whether the runtime can load a skill, run Python, and access an authorized `lark-cli` installation.
+
+| Agent / platform | Current integration | Status |
+| --- | --- | --- |
+| Codex | Install in the local skills directory; load `SKILL.md` and run the script | Ready |
+| Claude Code | Install in the local skills directory; load `SKILL.md` and run the script | Ready |
+| [OpenClaw](https://docs.openclaw.ai/skills) | Install as a Git Skill and run the local script | Ready |
+| [QClaw](https://github.com/QuantumClaw/QClaw) and other local agents | Import the repository or skill and provide Python, shell, and `lark-cli` | Reusable; installation varies |
+| [Feishu Aily](https://www.feishu.cn/content/s855fpkr) | Wrap the tracker as an Aily operation, connector, or HTTP service | No native adapter is included yet |
+
+> `SKILL.md` tells the agent how to operate the tracker. Data access is performed by the local script through the official Lark CLI. Runtimes that cannot execute local commands need a service adapter.
 
 ## How It Works
 
@@ -76,7 +113,7 @@ Example output:
 
 ## Quick Start
 
-1. Install the repository where your agent can read `SKILL.md`, or run the script directly.
+1. Install the repository in your agent's skills directory, or run the script directly.
 2. Make sure `lark-cli` is installed and authorized.
 3. Add your Feishu app as a collaborator on the target Bitable.
 4. Inspect fields:
@@ -156,6 +193,12 @@ python3 scripts/organize_jobs.py list --identity bot --link "<your-base-link>" \
 
 ## Installation
 
+### Codex
+
+```bash
+git clone https://github.com/Jerry-007-cpu/lark-basetracker.git ~/.codex/skills/lark-basetracker
+```
+
 ### Claude Code
 
 ```bash
@@ -165,12 +208,16 @@ git clone https://github.com/Jerry-007-cpu/lark-basetracker.git ~/.claude/skills
 ### OpenClaw
 
 ```bash
-git clone https://github.com/Jerry-007-cpu/lark-basetracker.git ~/skills/lark-basetracker
+openclaw skills install git:Jerry-007-cpu/lark-basetracker@main
 ```
 
-### Codex
+### QClaw / Other Local Agents
 
-Keep this repository in a readable local workspace and let Codex load [`SKILL.md`](./SKILL.md) before running the script.
+Import the repository into the platform's supported skills directory and make sure the agent can execute `python3` and `lark-cli`. Skill locations and installation commands vary by platform.
+
+### Feishu Aily
+
+This repository does not yet include a directly importable Aily adapter. Aily uses Feishu's cloud skill runtime, while the current tracker depends on local Python and `lark-cli`. Integration requires wrapping the script as an operation, connector, or HTTP service that Aily can call.
 
 ### Direct Script Usage
 
@@ -206,7 +253,7 @@ python3 scripts/organize_jobs.py inspect --identity bot --link "<your-base-link>
 
 ## Configuration
 
-[`config.example.json`](./config.example.json) shows the most common values you may want to reuse:
+[`config.example.json`](./config.example.json) shows common values an agent or downstream workflow may reuse. The current script does not load this file automatically; direct runs still use command-line arguments.
 
 - `app_token`: Bitable app token
 - `table_id`: target table ID
@@ -214,7 +261,7 @@ python3 scripts/organize_jobs.py inspect --identity bot --link "<your-base-link>
 - `title_field`: field used as each record title
 - `show_fields`: fields included in the digest
 - `wechat_to`: optional WeChat target
-- `max_items`: output cap for downstream workflows
+- `max_items`: reserved output cap for downstream workflows
 - `lark_cli`: path to the installed Lark CLI
 - `wxclawbot`: command used for WeChat delivery
 
@@ -238,12 +285,23 @@ python3 scripts/organize_jobs.py inspect --identity bot --link "<your-base-link>
 - Records without a parseable value in the selected date field are skipped.
 - Supported text date formats include `YYYY-MM-DD`, `YYYY-MM-DD HH:MM`, `YYYY-MM-DD HH:MM:SS`, and `YYYY/MM/DD`.
 - This version does not compare two snapshots or compute field-level diffs.
+- “Updated” means the value of your selected date field; the tracker does not independently detect changed cells.
 
 ## Privacy
 
-- Data flows only between your machine and Feishu/Lark APIs.
+- By default, data flows only between your machine and Feishu/Lark APIs.
 - Lark CLI credentials are stored locally by the official CLI.
 - The script only reads the Bitable you explicitly point it to.
+- Only when `--wechat` is explicitly used is the generated digest passed to `wxclawbot` for delivery.
+
+## Roadmap
+
+- Feishu Aily / internal Feishu agent connector or service adapter
+- Publish to a skill registry such as ClawHub for one-command QClaw / OpenClaw installation
+- Structured JSON output for more agents and automation workflows
+- Scheduled runs and a reusable “daily job updates” template
+- Snapshot comparison and field-level change summaries
+- More publishing channels and career-content templates
 
 ## License
 

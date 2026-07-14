@@ -19,7 +19,7 @@
 
 依赖（本机 macOS）：
   - lark-cli  已完成飞书授权
-  - wxclawbot 仅在 --wechat 时需要（npm i -g @claw-lab/wxclawbot-cli，且 QClaw+微信ClawBot 已接入）
+  - wxclawbot 仅在 --wechat 时需要（npm i -g @claw-lab/wxclawbot-cli，并完成微信 ClawBot 配置）
 """
 
 import argparse
