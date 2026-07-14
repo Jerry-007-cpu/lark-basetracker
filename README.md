@@ -6,7 +6,7 @@
   <p>Supports Feishu/Lark Base, Tencent Docs online tables, and CSV / TSV / XLSX files.</p>
 </div>
 
-## What it does
+## 1. What it does
 
 `lark-basetracker` is a conversational Agent Skill that reads a table, detects its fields, and reports recently added, changed, or removed records.
 
@@ -19,9 +19,86 @@ It is designed first for job-update creators:
 
 The same workflow also works for projects, leads, content calendars, vendors, and other tables.
 
-## Use it through conversation
+## 2. Install
 
-After one-time installation and account setup, send a link and describe the result you want:
+Codex, Claude Code, OpenClaw, and QClaw are supported.
+
+### Codex, Claude Code, and OpenClaw
+
+Copy and run one command:
+
+```bash
+npx skills add Jerry-007-cpu/lark-basetracker -g
+```
+
+You can also send this request directly to your agent:
+
+```text
+Install this Skill for me: https://github.com/Jerry-007-cpu/lark-basetracker
+After installation, guide me through connecting the table I want to track.
+```
+
+Start a new conversation after installation.
+
+### QClaw
+
+Send the same installation request to QClaw. QClaw will use the repository adapter to install both the Skill and its bundled runtime files.
+
+<details>
+<summary>Fallback when QClaw installation fails</summary>
+
+```bash
+git clone https://github.com/Jerry-007-cpu/lark-basetracker.git
+cd lark-basetracker
+python3 scripts/install_agent.py --platform qclaw
+```
+
+Restart QClaw and review/enable the Skill afterward.
+
+</details>
+
+### Connect a table for the first time
+
+Feishu and Tencent Docs are separate data sources. **Connect only the one you want to use; you do not need to set up both.**
+
+#### Feishu/Lark Base
+
+Ask your agent:
+
+```text
+Set up the first Feishu connection for lark-basetracker.
+```
+
+The agent sends the official application setup and user authorization pages. Follow those pages to finish. The Skill uses your user identity by default, so view-only permission works and the bot does not need to be added as a table collaborator.
+
+#### Tencent Docs
+
+The first connection has two steps:
+
+1. Get a personal token from the [official Tencent Docs authorization page](https://docs.qq.com/open/auth/mcp.html).
+2. Ask the agent to securely configure Tencent Docs for `lark-basetracker`, then enter the token in the hidden prompt.
+
+#### CSV, TSV, or XLSX
+
+No account connection is needed. Send the file directly to the agent.
+
+Never paste App Secrets, access tokens, or Tencent Docs tokens directly into chat.
+
+## 3. Supported data sources
+
+| Source | Current capability |
+| --- | --- |
+| Feishu/Lark Base link | Read online with the signed-in user's existing view permission |
+| Tencent Docs SmartSheet | Read tables, fields, and records through the official MCP server |
+| Tencent Docs regular table | Read through the official MCP server and recover table structure |
+| CSV / TSV / XLSX | Read locally without an online account |
+| Two files or saved states | Compare additions, field-level edits, and removals |
+
+A time field is optional: use date filtering when one exists, or automatically compare saved snapshots when it does not.
+
+## 4. Use it through conversation
+
+After installation and the relevant data-source connection, send a table link or file with your request:
 
 ```text
 Here is my jobs table: <table link>
@@ -33,106 +110,14 @@ What was added, edited, or removed since the last snapshot?
 <table link>
 ```
 
-The agent inspects fields, chooses date filtering or snapshot comparison, and formats the answer in the background. Normal users do not need to run commands.
-
-## Data sources
-
-| Source | Current capability |
-| --- | --- |
-| Feishu/Lark Base link | Read online with the signed-in user's existing permissions |
-| Tencent Docs SmartSheet | Read tables, fields, and records through the official MCP server |
-| Tencent Docs regular table | Read through the official MCP server and recover table structure |
-| CSV / TSV / XLSX | Read locally without an online account |
-| Two files or saved states | Compare additions, field-level edits, and removals |
-
-View-only permission is a supported primary scenario. The Skill does not bypass owner-defined viewing, download, or membership restrictions.
-
-## Is a time field required?
-
-No.
-
-With a time field, the Skill can answer requests such as “today,” “this week,” or “the last 7 days.” Useful fields include `Created Time`, `Last Modified Time`, `Published Time`, and `Open Time`.
-
-Without a time field, the Skill saves a complete state and compares it with the next read. It reports added records, removed records, and exact before/after field values. Snapshot comparison works best with a stable unique field such as a job ID, record number, application URL, or provider record ID.
-
-## Tencent Docs
-
-The repository includes its own client for the [official Tencent Docs MCP endpoint](https://developer.cloud.tencent.com/mcp/server/11803). The host agent does not need to implement MCP calls itself.
-
-For first-time setup:
-
-1. Get a personal token from the [official Tencent Docs authorization page](https://docs.qq.com/open/auth/mcp.html).
-2. Ask the agent to securely configure Tencent Docs for `lark-basetracker`.
-3. The agent starts a hidden-input prompt so the token does not appear in chat or shell history.
-
-The client initializes MCP, discovers the live tools and JSON schemas, then uses the appropriate read-only SmartSheet or content tools.
-
-Error `400006` means the token needs to be checked or renewed. Error `400007` means the Tencent Docs account lacks the required VIP capability. Exported XLSX, CSV, or TSV remains available as a fallback.
-
-## First Feishu connection
-
-Ask your agent:
-
 ```text
-Set up the first Feishu connection for lark-basetracker.
+Summarize tasks updated in this project table this week. Include owner and status.
+<table link>
 ```
 
-The agent checks the official `lark-cli`, then sends the official application setup and user authorization links. The default identity is the signed-in user, so a table only needs to be viewable by that user; the app does not need to be added as a collaborator on every table.
+The agent detects fields, chooses date filtering or snapshot comparison, and formats the result. Normal users do not need to run processing commands.
 
-Never paste App Secrets or access tokens into chat.
-
-## Install
-
-### Codex, Claude Code, and OpenClaw
-
-Copy and run one command:
-
-```bash
-npx skills add Jerry-007-cpu/lark-basetracker -g
-```
-
-The installer detects or asks you to select an agent, then installs the complete Skill. Start a new conversation after installation.
-
-You can also send this request directly to your agent:
-
-```text
-Install this Skill for me: https://github.com/Jerry-007-cpu/lark-basetracker
-After installation, guide me through connecting the Feishu or Tencent Docs table I want to track.
-```
-
-`-g` installs the Skill for the current user so it is available across projects. Omit `-g` for a project-only installation.
-
-### QClaw
-
-You can send the same installation request to QClaw. Because QClaw's native Skill installer stores only one Markdown file, the agent needs to use this repository's QClaw adapter to install the bundled Python runtime as well.
-
-<details>
-<summary>Fallback for QClaw or installation problems</summary>
-
-Download the repository and run the matching adapter:
-
-```bash
-git clone https://github.com/Jerry-007-cpu/lark-basetracker.git
-cd lark-basetracker
-python3 scripts/install_agent.py --platform qclaw
-```
-
-Restart QClaw and review/enable the Skill afterward.
-
-To troubleshoot the universal installer for Codex, Claude Code, or OpenClaw, replace `qclaw` in the final command with `codex`, `claude-code`, or `openclaw`.
-
-</details>
-
-## Supported agents
-
-| Agent | Status | Installation target |
-| --- | --- | --- |
-| [Codex](https://learn.chatgpt.com/docs/build-skills.md) | Supported | User `.agents/skills` |
-| [Claude Code](https://code.claude.com/docs/en/skills) | Supported | User `.claude/skills` |
-| [OpenClaw](https://docs.openclaw.ai/skills) | Supported | User `.openclaw/skills` |
-| [QClaw](https://github.com/QuantumClaw/QClaw) | Supported | Shared QClaw Skill plus a separate runtime directory |
-
-## Example output
+Example output:
 
 ```text
 📌 Table snapshot changes  Added 1 · Changed 1 · Removed 0
@@ -147,40 +132,4 @@ Changed
     Deadline: 2026-07-20 → 2026-07-31
 ```
 
-## Architecture
-
-Provider access and table analysis are separated:
-
-- Feishu provider: Base/Wiki parsing, fields, and records
-- Tencent Docs provider: MCP initialization, tool discovery, and online reads
-- File provider: CSV, TSV, and XLSX
-- Shared core: field detection, date filtering, state persistence, field-level diffing, and rendering
-
-All supported agents therefore share the same tracking behavior and differ only in installation and runtime layout.
-
-## Current limitations
-
-- Tencent Docs document types return different structures. SmartSheet has the strongest support; regular tables depend on structured content returned by official `get_content`.
-- Snapshot comparison should use a stable unique field. Duplicate names and reordered rows are less reliable without one.
-- XLSX requires `openpyxl`; CSV and TSV use the Python standard library.
-- Feishu `.base` backup files are not currently parsed.
-- Feishu Aily and publishing to WeChat channels are outside the current adapter set.
-
-## Privacy
-
-- Operations are read-only by default.
-- Feishu data flows between the local agent, `lark-cli`, and Feishu APIs.
-- Tencent Docs tokens stay in an environment variable or a local `0600` token file.
-- Snapshot states are local JSON files at paths selected by the user.
-- Never commit tokens, App Secrets, or state files containing real business data.
-
-## Development checks
-
-```bash
-python3 -B -m unittest discover -s tests -v
-python3 -B -m py_compile scripts/organize_jobs.py scripts/basetracker/*.py
-```
-
-## License
-
-[MIT](./LICENSE)
+[MIT License](./LICENSE)
