@@ -14,11 +14,33 @@ class FakeLarkProvider(LarkBaseProvider):
         raise AssertionError(path)
 
 
+class MultiTableLarkProvider(FakeLarkProvider):
+    def get(self, path, params=None):
+        if path.endswith("/tables"):
+            return {"data": {"items": [
+                {"table_id": "tbl_jobs", "name": "岗位"},
+                {"table_id": "tbl_companies", "name": "公司"},
+            ]}}
+        return super().get(path, params)
+
+
 class LarkProviderTests(unittest.TestCase):
     def test_base_read_normalizes_record_ids(self):
         data = FakeLarkProvider().read("https://example.feishu.cn/base/app123")
         self.assertEqual(data["table_id"], "tbl1")
+        self.assertEqual(data["table_name"], "岗位")
         self.assertEqual(data["records"], [{"source_id": "rec1", "fields": {"岗位": "产品经理"}}])
+
+    def test_multiple_tables_require_an_explicit_selection(self):
+        with self.assertRaisesRegex(ValueError, "请发送含 table= 参数"):
+            MultiTableLarkProvider().read("https://example.feishu.cn/base/app123")
+
+    def test_table_query_parameter_selects_the_matching_table(self):
+        data = MultiTableLarkProvider().read(
+            "https://example.feishu.cn/base/app123?table=tbl_companies"
+        )
+        self.assertEqual(data["table_id"], "tbl_companies")
+        self.assertEqual(data["table_name"], "公司")
 
 
 if __name__ == "__main__":

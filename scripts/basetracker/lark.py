@@ -66,15 +66,22 @@ class LarkBaseProvider:
         items = data.get("data", {}).get("items", []) or []
         return [{"table_id": item.get("table_id", ""), "name": item.get("name", "")} for item in items]
 
-    def ensure_table_id(self, app_token: str, table_id: str | None) -> str:
-        if table_id:
-            return table_id
+    def select_table(self, app_token: str, table_id: str | None) -> dict[str, str]:
         tables = self.fetch_tables(app_token)
         if not tables:
             raise ValueError("该多维表格里没有找到任何数据表。")
+        if table_id:
+            selected = next((table for table in tables if table["table_id"] == table_id), None)
+            if selected:
+                return selected
+            raise ValueError(f"未在该多维表格中找到数据表 {table_id}。")
         if len(tables) > 1:
-            self.log(f"检测到 {len(tables)} 张数据表，默认使用第一张：{tables[0]['name']}")
-        return tables[0]["table_id"]
+            choices = "、".join(f"{table['name']}（{table['table_id']}）" for table in tables)
+            raise ValueError(
+                f"检测到 {len(tables)} 张数据表：{choices}。"
+                "请发送含 table= 参数的具体数据表链接，或指定 --table-id。"
+            )
+        return tables[0]
 
     def fetch_fields(self, app_token: str, table_id: str) -> list[dict[str, Any]]:
         data = self.get(
@@ -105,11 +112,13 @@ class LarkBaseProvider:
 
     def read(self, link: str, table_id: str | None = None) -> dict[str, Any]:
         app_token, parsed_table_id = self.parse_link(link)
-        selected_table_id = self.ensure_table_id(app_token, table_id or parsed_table_id)
+        selected_table = self.select_table(app_token, table_id or parsed_table_id)
+        selected_table_id = selected_table["table_id"]
         return {
             "source": link,
             "app_token": app_token,
             "table_id": selected_table_id,
+            "table_name": selected_table["name"],
             "fields_meta": self.fetch_fields(app_token, selected_table_id),
             "records": self.fetch_records(app_token, selected_table_id),
         }

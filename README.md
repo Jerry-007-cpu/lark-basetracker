@@ -69,7 +69,15 @@ Ask your agent:
 Set up the first Feishu connection for lark-basetracker.
 ```
 
-The agent sends the official application setup and user authorization pages. Follow those pages to finish. The Skill uses your user identity by default, so view-only permission works and the bot does not need to be added as a table collaborator.
+The agent first checks for the official `lark-cli`. If it is missing, the agent asks for your permission before running the official recommended installer:
+
+```bash
+npx @larksuite/cli@latest install
+```
+
+This requires Node.js and `npx`. **Without `lark-cli`, the user authorization link cannot be generated yet.** After installation, the agent sends the Feishu/Lark application setup page first, then asks the CLI to generate the user authorization link. If either page fails to load, keeps spinning, or fails verification, temporarily disable your VPN/proxy and retry; you can turn it back on afterward.
+
+An existing CLI installation is reused. If the application is already configured and authorization remains valid, the agent reads the table directly. The Skill uses your user identity by default, so view-only permission works and the bot does not need to be added as a table collaborator.
 
 #### Tencent Docs
 
@@ -83,6 +91,18 @@ The first connection has two steps:
 No account connection is needed. Send the file directly to the agent.
 
 Never paste App Secrets, access tokens, or Tencent Docs tokens directly into chat.
+
+### What the agent asks after the first read
+
+After confirming the table, subtable, and detected fields, the agent guides you through a tracking setup in short rounds. The first round asks:
+
+1. Track additions, edits, removals, upcoming deadlines, or a combination?
+2. Run once, every N days, each workday, or weekly at a chosen time?
+3. Which fields should appear in the digest or notification?
+
+A second round can refine filters, whether no-change runs stay silent, and where results should go. The agent recommends defaults from the detected schema instead of making you design the setup from scratch.
+
+Recurring schedules require automation support from the current agent platform. Before creating one, the agent confirms the time, timezone, and destination.
 
 ## 3. Supported data sources
 
@@ -116,6 +136,14 @@ Summarize tasks updated in this project table this week. Include owner and statu
 ```
 
 The agent detects fields, chooses date filtering or snapshot comparison, and formats the result. Normal users do not need to run processing commands.
+
+### Tracking multiple tables
+
+Feishu/Lark authorization applies to your user identity; it is not repeated for every table. Tracking settings and snapshots are still isolated per table:
+
+- If one Base contains multiple subtables and the link does not identify one, the agent lists the names and asks you to choose instead of silently selecting the first.
+- Multiple independent table links get separate names, display fields, filters, and snapshot states.
+- Tables are combined into one daily or weekly digest only when you explicitly request a digest group and choose a stable deduplication field such as role ID or application link.
 
 Example output:
 

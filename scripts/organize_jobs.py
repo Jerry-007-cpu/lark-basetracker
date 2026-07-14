@@ -104,6 +104,8 @@ def inspect_text(data: dict[str, Any]) -> str:
     fields = data.get("fields_meta", [])
     matched = auto_match_fields(fields)
     lines = []
+    if data.get("table_name"):
+        lines.append(f"数据表：{data['table_name']}")
     if data.get("table_id"):
         lines.append(f"table_id：{data['table_id']}")
     if data.get("sheet_id"):
@@ -252,6 +254,7 @@ def add_filter_args(parser: argparse.ArgumentParser) -> None:
 
 def add_lark_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--link", required=True)
+    parser.add_argument("--table-id", default=None, help="多维表格中的具体数据表 ID")
     parser.add_argument("--identity", choices=["user", "bot"], default="user")
     parser.add_argument("--lark-cli", default="lark-cli")
 
@@ -276,7 +279,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     list_parser = subparsers.add_parser("list", help="整理飞书表格记录")
     add_lark_args(list_parser)
-    list_parser.add_argument("--table-id", default=None)
     add_filter_args(list_parser)
     list_parser.add_argument("--wechat", action="store_true")
     list_parser.add_argument("--wechat-to", default="")
