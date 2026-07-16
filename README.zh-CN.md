@@ -81,16 +81,26 @@ npx @larksuite/cli@latest install
 
 #### 使用腾讯文档
 
-首次连接需要两步：
+首次连接按下面顺序操作：
 
-1. 打开[腾讯文档官方授权页](https://docs.qq.com/open/auth/mcp.html)获取个人 Token。
-2. 对 Agent 说“帮我安全配置 lark-basetracker 的腾讯文档连接”，然后在隐藏输入框中填写 Token。
+1. 打开[腾讯文档官方授权页](https://docs.qq.com/open/auth/mcp.html)，获取新的个人 Token。
+2. 对 Agent 说“帮我安全配置 lark-basetracker 的腾讯文档连接”。Agent 会先找到配置脚本，再给你一条包含完整路径、以 `python3` 开头的命令。
+3. 在终端里先运行 Agent 给出的完整命令。终端里以 `%` 或 `$` 结尾的一行是命令提示符，**不要把 Token 直接粘贴在那里**。
+4. 等终端出现下面这句提示后，再粘贴 Token 并按回车：
+
+   ```text
+   粘贴腾讯文档 MCP Token（输入不会显示）：
+   ```
+
+   输入期间屏幕不会出现任何字符，这是正常的。看到“已安全保存”后，回到对话告诉 Agent“已配置”，Agent 会继续验证连接并读取表格。
+
+如果把 Token 直接粘贴在 `%` 或 `$` 后面，Shell 会把它当成命令，并可能保存在终端历史中。此时请立即到官方授权页撤销并重新生成 Token，不要继续使用旧 Token。
 
 #### 使用 CSV、TSV 或 XLSX
 
 不需要连接任何账号，直接把文件发给 Agent。
 
-不要把 App Secret、Access Token 或腾讯文档 Token 直接粘贴到聊天中。
+不要把 App Secret、Access Token 或腾讯文档 Token 直接粘贴到聊天中，也不要发送包含完整 Token 的截图。
 
 ### 连接成功后会问什么
 

@@ -81,16 +81,26 @@ An existing CLI installation is reused. If the application is already configured
 
 #### Tencent Docs
 
-The first connection has two steps:
+Follow these steps for the first connection:
 
-1. Get a personal token from the [official Tencent Docs authorization page](https://docs.qq.com/open/auth/mcp.html).
-2. Ask the agent to securely configure Tencent Docs for `lark-basetracker`, then enter the token in the hidden prompt.
+1. Get a new personal token from the [official Tencent Docs authorization page](https://docs.qq.com/open/auth/mcp.html).
+2. Ask the agent to securely configure Tencent Docs for `lark-basetracker`. The agent locates the configuration script and gives you one command beginning with `python3` that contains its full path.
+3. Run that complete command in Terminal first. A line ending in `%` or `$` is the shell prompt; **do not paste the token directly there**.
+4. Paste the token and press Enter only after Terminal displays this prompt:
+
+   ```text
+   粘贴腾讯文档 MCP Token（输入不会显示）：
+   ```
+
+   No characters appear while you type or paste; this is expected. After `已安全保存` appears, return to the conversation and tell the agent that configuration is complete so it can verify the connection and read the table.
+
+If you paste a token directly after `%` or `$`, the shell treats it as a command and may store it in terminal history. Revoke that token immediately on the official authorization page, generate a new one, and do not reuse the exposed token.
 
 #### CSV, TSV, or XLSX
 
 No account connection is needed. Send the file directly to the agent.
 
-Never paste App Secrets, access tokens, or Tencent Docs tokens directly into chat.
+Never paste App Secrets, access tokens, or Tencent Docs tokens directly into chat, and do not send screenshots that show a complete token.
 
 ### What the agent asks after the first read
 
