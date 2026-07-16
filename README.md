@@ -145,6 +145,24 @@ Feishu/Lark authorization applies to your user identity; it is not repeated for 
 - Multiple independent table links get separate names, display fields, filters, and snapshot states.
 - Tables are combined into one daily or weekly digest only when you explicitly request a digest group and choose a stable deduplication field such as role ID or application link.
 
+Frequently used tables can be saved under short names such as "Campus Roles," "Experienced Roles," or "Referral Digest." These tracking sources are stored locally, with Feishu/Lark and Tencent Docs configurations kept separate.
+
+When you invoke the Skill again:
+
+- Say "Check Campus Roles for updates in the last 7 days" to route directly to that source.
+- If only one source is saved, a vague request such as "Check for updates" uses it directly.
+- If multiple sources are saved and the request is ambiguous, the agent shows a short picker:
+
+```text
+You have 3 saved tracking sources. Which one should I check?
+1. Feishu/Lark | Campus Roles
+2. Feishu/Lark | Experienced Roles
+3. Tencent Docs | Referral Digest
+4. Summarize all
+```
+
+After saving a second source, the agent explains once that you can ask for a source by name or request a summary of all sources. The Skill cannot open a prompt by itself without a scheduler; "invoke" means clicking the Skill, sending a request, or starting a scheduled run.
+
 Example output:
 
 ```text

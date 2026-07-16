@@ -25,6 +25,15 @@ from basetracker.core import (
 )
 from basetracker.lark import FIELD_TYPE_NAME, LarkBaseProvider
 from basetracker.mcp import MCPError
+from basetracker.sources import (
+    DEFAULT_REGISTRY_PATH,
+    add_source,
+    get_source,
+    load_registry,
+    remove_source,
+    render_source_picker,
+    source_label,
+)
 from basetracker.tencent_docs import DEFAULT_ENDPOINT, TencentDocsProvider
 
 
@@ -222,6 +231,37 @@ def cmd_tencent_list(args: argparse.Namespace) -> None:
     write_output(args.out, text)
 
 
+def cmd_source_add(args: argparse.Namespace) -> None:
+    source = add_source(
+        args.registry,
+        name=args.name,
+        kind=args.kind,
+        location=args.location,
+        table_id=args.table_id,
+        sheet_id=args.sheet_id,
+        sheet_name=args.sheet_name,
+        replace=args.replace,
+    )
+    print(f"已保存追踪源：{source_label(source)}")
+
+
+def cmd_source_list(args: argparse.Namespace) -> None:
+    sources = load_registry(args.registry)["sources"]
+    if args.json:
+        print(json.dumps({"sources": sources}, ensure_ascii=False, indent=2))
+    else:
+        print(render_source_picker(sources))
+
+
+def cmd_source_get(args: argparse.Namespace) -> None:
+    print(json.dumps(get_source(args.registry, args.name), ensure_ascii=False, indent=2))
+
+
+def cmd_source_remove(args: argparse.Namespace) -> None:
+    source = remove_source(args.registry, args.name)
+    print(f"已移除追踪源：{source_label(source)}")
+
+
 def push_wechat(args: argparse.Namespace, text: str) -> None:
     command = [args.wxclawbot, "send", "--text", text, "--json"]
     if args.wechat_to:
@@ -267,6 +307,14 @@ def add_tencent_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--mcp-url", default=DEFAULT_ENDPOINT)
     parser.add_argument("--token-env", default="TENCENT_DOCS_TOKEN", help="保存 Token 的环境变量名")
     parser.add_argument("--token-file", default="~/.config/lark-basetracker/tencent_docs_token", help="未设置环境变量时读取的 Token 文件")
+
+
+def add_registry_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--registry",
+        default=os.environ.get("LARK_BASETRACKER_SOURCES", DEFAULT_REGISTRY_PATH),
+        help="本地追踪源清单路径",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -318,6 +366,32 @@ def build_parser() -> argparse.ArgumentParser:
     add_tencent_args(tencent_list)
     add_filter_args(tencent_list)
     tencent_list.set_defaults(func=cmd_tencent_list)
+
+    source_add = subparsers.add_parser("source-add", help="保存一个有名称的追踪源")
+    source_add.add_argument("--name", required=True, help="对话中使用的简短名称")
+    source_add.add_argument("--kind", required=True, choices=["lark", "tencent", "file"])
+    source_add.add_argument("--location", required=True, help="表格链接或本地文件路径")
+    source_add.add_argument("--table-id", default="", help="飞书 Base 数据表 ID")
+    source_add.add_argument("--sheet-id", default="", help="腾讯文档工作表 ID")
+    source_add.add_argument("--sheet-name", default="", help="腾讯文档工作表名称")
+    source_add.add_argument("--replace", action="store_true", help="替换同名追踪源")
+    add_registry_arg(source_add)
+    source_add.set_defaults(func=cmd_source_add)
+
+    source_list = subparsers.add_parser("source-list", help="列出追踪源或生成数据源选择提示")
+    source_list.add_argument("--json", action="store_true", help="输出包含链接的完整 JSON，供 Agent 后台使用")
+    add_registry_arg(source_list)
+    source_list.set_defaults(func=cmd_source_list)
+
+    source_get = subparsers.add_parser("source-get", help="按名称读取追踪源")
+    source_get.add_argument("--name", required=True)
+    add_registry_arg(source_get)
+    source_get.set_defaults(func=cmd_source_get)
+
+    source_remove = subparsers.add_parser("source-remove", help="移除一个追踪源")
+    source_remove.add_argument("--name", required=True)
+    add_registry_arg(source_remove)
+    source_remove.set_defaults(func=cmd_source_remove)
     return parser
 
 

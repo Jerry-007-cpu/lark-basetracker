@@ -20,6 +20,26 @@ def write_csv(path, rows):
 
 
 class CLITests(unittest.TestCase):
+    def test_named_sources_can_generate_a_wake_up_picker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            registry = Path(directory) / "sources.json"
+            sources = [
+                ("秋招岗位", "lark", "https://example.feishu.cn/base/app1?table=tbl1"),
+                ("内推汇总", "tencent", "https://docs.qq.com/sheet/example"),
+            ]
+            for name, kind, location in sources:
+                subprocess.run([
+                    sys.executable, str(CLI), "source-add",
+                    "--registry", str(registry), "--name", name,
+                    "--kind", kind, "--location", location,
+                ], cwd=ROOT, check=True, capture_output=True, text=True)
+            result = subprocess.run([
+                sys.executable, str(CLI), "source-list", "--registry", str(registry),
+            ], cwd=ROOT, check=True, capture_output=True, text=True)
+            self.assertIn("飞书｜秋招岗位", result.stdout)
+            self.assertIn("腾讯文档｜内推汇总", result.stdout)
+            self.assertIn("全部汇总", result.stdout)
+
     def test_snapshot_state_can_be_compared_and_replaced_in_place(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
