@@ -6,6 +6,7 @@ import csv
 import hashlib
 import json
 import os
+import re
 from collections import Counter
 from datetime import date, datetime, timedelta
 from typing import Any, Iterable
@@ -159,6 +160,30 @@ def to_epoch_ms(value: Any) -> int | None:
         return int(datetime.fromisoformat(normalized).timestamp() * 1000)
     except ValueError:
         pass
+    full_date_match = re.fullmatch(
+        r"(\d{4})(?:[./-]|年)(\d{1,2})(?:[./-]|月)(\d{1,2})日?",
+        text,
+    )
+    if full_date_match:
+        try:
+            parsed = datetime(*(int(part) for part in full_date_match.groups()))
+            return int(parsed.timestamp() * 1000)
+        except ValueError:
+            return None
+    month_day_match = re.fullmatch(
+        r"(\d{1,2})(?:[./-]|月)(\d{1,2})日?",
+        text,
+    )
+    if month_day_match:
+        try:
+            parsed = datetime(
+                datetime.now().year,
+                int(month_day_match.group(1)),
+                int(month_day_match.group(2)),
+            )
+            return int(parsed.timestamp() * 1000)
+        except ValueError:
+            return None
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d", "%Y/%m/%d"):
         try:
             return int(datetime.strptime(text, fmt).timestamp() * 1000)

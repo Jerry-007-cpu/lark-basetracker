@@ -1,15 +1,18 @@
 import json
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 
 from scripts.basetracker.core import (
     build_state,
     diff_states,
     parse_markdown_table,
+    filter_records,
     render_diff,
     save_state,
     load_state,
+    to_epoch_ms,
 )
 
 
@@ -47,6 +50,28 @@ class SnapshotDiffTests(unittest.TestCase):
 """)
         self.assertEqual(names, ["岗位", "地点"])
         self.assertEqual(rows, [{"岗位": "产品", "地点": "深圳"}])
+
+    def test_text_dates_without_year_use_current_year(self):
+        expected_year = datetime.now().year
+        for value in ("7.17", "7/17", "7-17", "7月17日"):
+            with self.subTest(value=value):
+                parsed = datetime.fromtimestamp(to_epoch_ms(value) / 1000)
+                self.assertEqual((parsed.year, parsed.month, parsed.day), (expected_year, 7, 17))
+
+    def test_full_text_dates_support_dots_and_chinese(self):
+        for value in ("2026.7.17", "2026年7月17日"):
+            with self.subTest(value=value):
+                parsed = datetime.fromtimestamp(to_epoch_ms(value) / 1000)
+                self.assertEqual((parsed.year, parsed.month, parsed.day), (2026, 7, 17))
+
+    def test_non_date_in_date_column_is_skipped(self):
+        records = [
+            {"fields": {"公司": "有效记录", "开启时间": "7.17"}},
+            {"fields": {"公司": "说明文字", "开启时间": "祝各位同学一切顺利"}},
+            {"fields": {"公司": "错误日期", "开启时间": "13.40"}},
+        ]
+        kept, _since, _until = filter_records(records, date_field="开启时间")
+        self.assertEqual([fields["公司"] for _date, fields in kept], ["有效记录"])
 
 
 if __name__ == "__main__":

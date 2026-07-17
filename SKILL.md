@@ -161,6 +161,8 @@ python3 scripts/organize_jobs.py tencent-list --link "<docs.qq.com 链接>" \
   --days 7 --show-fields "<字段1,字段2>"
 ```
 
+腾讯智能表格把日期列返回为文本时，支持 `2026-07-17`、`2026.7.17`、`7.17`、`7月17日` 等常见格式；缺少年份时按当前年份处理。日期列中的说明文字或非法日期会自动跳过，不应导致整次查询失败。
+
 内置客户端会执行 MCP 初始化、`tools/list` 和 `tools/call`，并根据实时 JSON Schema 组装参数。智能表格优先调用 `smartsheet.list_tables`、`smartsheet.list_fields`、`smartsheet.list_records`；普通在线表格通过 `get_content` 读取结构化内容。每个远程阶段都输出简短进度；不要让用户在无反馈状态下等待。客户端应使用系统 CA 证书并保持 TLS 校验开启，不能用关闭证书校验的方式绕过错误。
 
 如果没有 Token，按以下顺序引导，不要省略中间步骤：
