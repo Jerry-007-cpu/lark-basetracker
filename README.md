@@ -77,7 +77,7 @@ npx @larksuite/cli@latest install
 
 This requires Node.js and `npx`. **Without `lark-cli`, the user authorization link cannot be generated yet.** After installation, the agent sends the Feishu/Lark application setup page first, then asks the CLI to generate the user authorization link. If either page fails to load, keeps spinning, or fails verification, temporarily disable your VPN/proxy and retry; you can turn it back on afterward.
 
-An existing CLI installation is reused. If the application is already configured and authorization remains valid, the agent reads the table directly. The Skill uses your user identity by default, so view-only permission works and the bot does not need to be added as a table collaborator.
+An existing CLI installation is reused. If the application is already configured and authorization remains valid, the agent reads the table directly. The Skill uses your user identity by default and initially requests only Base record retrieval (`base:record:retrieve`), so view-only permission works and the bot does not need to be added as a table collaborator. A Wiki link may additionally require the read-only `wiki:node:read` scope to resolve the underlying Base.
 
 #### Tencent Docs
 
@@ -97,6 +97,8 @@ Follow these steps for the first connection:
 If you paste a token directly after `%` or `$`, the shell treats it as a command and may store it in terminal history. Revoke that token immediately on the official authorization page, generate a new one, and do not reuse the exposed token.
 
 After configuration, send the Tencent Docs link and ask the agent to bind it. The agent detects the specific worksheet from the link, verifies its name, fields, and record count, and only then saves it under the real worksheet name. The first inspection does not download the full table; later reads reuse the saved worksheet and tool metadata.
+
+Tencent Docs date columns may be returned as text. The tracker recognizes full dates and common month-day forms such as `2026-07-17`, `2026.7.17`, `7.17`, and `7月17日`; a missing year uses the current year. Notes or invalid dates mixed into the date column are skipped record by record.
 
 #### CSV, TSV, or XLSX
 

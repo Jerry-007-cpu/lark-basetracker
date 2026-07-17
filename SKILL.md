@@ -63,9 +63,10 @@ python3 scripts/organize_jobs.py list --identity user --link "<飞书链接>" \
    该命令需要 Node.js 和 `npx`。如果这两者也缺失，先说明再取得安装同意。
 3. 未配置应用时，运行 `lark-cli config init --new`。把返回的官方配置链接原样发给用户。
 4. 发送任何飞书配置或授权链接时，同时提醒：“如果页面打不开、一直转圈或验证失败，可以暂时关掉 VPN/代理后重试，完成后再开启。”不要把关闭 VPN 说成必须条件。
-5. 应用配置完成后，运行 `lark-cli auth login --domain base --no-wait --json` 发起最小范围的 Base 用户授权。立即把 `verification_url` 原样发给用户，保留返回的 `device_code`，不在用户看到链接前阻塞等待。
+5. 应用配置完成后，运行 `lark-cli auth login --scope "base:record:retrieve" --no-wait --json` 发起最小范围的 Base 用户只读授权。立即把 `verification_url` 原样发给用户，保留返回的 `device_code`，不在用户看到链接前阻塞等待。
 6. 用户确认已授权后，运行 `lark-cli auth login --device-code "<device_code>" --json` 完成登录，再用 `lark-cli auth status` 验证。链接过期时重新发起，不复用旧链接。
 7. 已安装 CLI 时跳过安装；已配置且授权有效时跳过配置和登录，直接检查字段。
+8. Wiki 链接若缺少知识库节点读取权限，再增量申请 `wiki:node:read`；保持用户身份和只读调用，不要因为机器人无法加入他人创建的表格而改用 bot 身份。
 
 ### 读取后引导
 
