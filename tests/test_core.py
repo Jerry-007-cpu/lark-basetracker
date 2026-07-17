@@ -10,6 +10,7 @@ from scripts.basetracker.core import (
     parse_markdown_table,
     filter_records,
     render_diff,
+    render_records,
     save_state,
     load_state,
     to_epoch_ms,
@@ -72,6 +73,36 @@ class SnapshotDiffTests(unittest.TestCase):
         ]
         kept, _since, _until = filter_records(records, date_field="开启时间")
         self.assertEqual([fields["公司"] for _date, fields in kept], ["有效记录"])
+
+    def test_large_result_uses_one_consistent_compact_template(self):
+        kept = []
+        for index in range(21):
+            kept.append((None, {
+                "公司": f"公司{index}",
+                "地点": "深圳" if index else "",
+                "投递链接": f"https://example.test/{index}",
+            }))
+        text = render_records(
+            kept,
+            title_field="公司",
+            show_fields=["地点", "投递链接"],
+            output_format="auto",
+        )
+        record_lines = [line for line in text.splitlines() if line.startswith("• ")]
+        self.assertEqual(len(record_lines), 21)
+        self.assertTrue(all("｜地点：" in line and "｜投递链接：https://" in line for line in record_lines))
+        self.assertIn("公司0｜地点：—｜投递链接：https://example.test/0", record_lines[0])
+        self.assertIn("公司20｜地点：深圳｜投递链接：https://example.test/20", record_lines[-1])
+
+    def test_detailed_result_keeps_requested_fields_with_placeholders(self):
+        text = render_records(
+            [(None, {"公司": "示例", "投递链接": "https://example.test"})],
+            title_field="公司",
+            show_fields=["地点", "投递链接"],
+            output_format="detailed",
+        )
+        self.assertIn("地点：—", text)
+        self.assertIn("投递链接：https://example.test", text)
 
 
 if __name__ == "__main__":

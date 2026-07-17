@@ -243,7 +243,10 @@ def render_records(
     since_ms: int | None = None,
     until_ms: int | None = None,
     heading: str = "表格更新整理",
+    output_format: str = "auto",
 ) -> str:
+    if output_format not in {"auto", "detailed", "compact"}:
+        raise ValueError(f"不支持的输出格式：{output_format}")
     range_text = ""
     if since_ms is not None or until_ms is not None:
         start = ms_to_date(since_ms) if since_ms is not None else "…"
@@ -252,17 +255,27 @@ def render_records(
     lines = [f"📌 {heading}{range_text}　共 {len(kept)} 条"]
     if not kept:
         return "\n".join(lines + ["（该时间段内没有符合条件的记录）"])
+    compact = output_format == "compact" or (output_format == "auto" and len(kept) > 20)
     for date_ms, fields in kept:
         title = norm(fields.get(title_field)) if title_field else ""
+        keys = show_fields or [key for key in fields if key not in (title_field, date_field)]
+        keys = [key for key in keys if key != title_field]
+        if compact:
+            parts = [title or "(未命名记录)"]
+            if date_ms is not None and date_field not in keys:
+                parts.append(f"{date_field or '日期'}：{ms_to_date(date_ms)}")
+            for key in keys:
+                parts.append(f"{key}：{norm(fields.get(key)) or '—'}")
+            lines.append("• " + "｜".join(parts))
+            continue
         line = f"\n• {title or '(未命名记录)'}"
         if date_ms is not None:
             line += f"　日期：{ms_to_date(date_ms)}"
         lines.append(line)
-        keys = show_fields or [key for key in fields if key not in (title_field, date_field)]
         for key in keys:
             value = norm(fields.get(key))
-            if value:
-                lines.append(f"    {key}：{value}")
+            if show_fields is not None or value:
+                lines.append(f"    {key}：{value or '—'}")
     return "\n".join(lines)
 
 

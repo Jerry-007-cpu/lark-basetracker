@@ -108,6 +108,7 @@ def state_and_text(args: argparse.Namespace, data: dict[str, Any], heading: str)
         since_ms=since_ms,
         until_ms=until_ms,
         heading=heading,
+        output_format=getattr(args, "output_format", "auto"),
     )
     if args.state_out:
         save_state(args.state_out, state)
@@ -145,8 +146,59 @@ def inspect_text(data: dict[str, Any]) -> str:
         f"建议标题字段：{matched.get('title') or '未识别'}",
         f"建议时间字段：{matched.get('date') or '未识别'}",
         f"建议快照主键：{matched.get('key') or '使用平台记录 ID / 标题字段'}",
+        "",
+        query_guide_text(data),
     ])
     return "\n".join(lines)
+
+
+def query_guide_text(data: dict[str, Any]) -> str:
+    fields = data.get("fields_meta", [])
+    matched = auto_match_fields(fields)
+    names = [str(field.get("field_name", "")).strip() for field in fields]
+    names = [name for name in names if name]
+    display_fields = "、".join(recommended_display_fields(names, matched)) or "按识别到的字段展示"
+    date_field = matched.get("date")
+    time_default = "最近 7 天" if date_field else "先保存本次快照，下次比较新增、修改和删除"
+    return "\n".join([
+        "首次查询设置（请确认或直接采用默认值）：",
+        f"1. 筛选字段：{date_field or '未识别到时间字段，建议使用快照比较'}",
+        f"2. 查询范围：{time_default}",
+        f"3. 展示字段：{display_fields}",
+        "可以直接说“按默认设置查询”，也可以一次修改这三项。",
+    ])
+
+
+def recommended_display_fields(names: list[str], matched: dict[str, Any]) -> list[str]:
+    selected: list[str] = []
+
+    def add(name: str | None) -> None:
+        if name and name in names and name not in selected:
+            selected.append(name)
+
+    def add_matches(keywords: tuple[str, ...]) -> None:
+        for name in names:
+            lowered = name.lower()
+            if any(keyword.lower() in lowered for keyword in keywords):
+                add(name)
+
+    add(matched.get("title"))
+    for keywords in (
+        ("招聘岗位", "岗位", "职位", "职务", "role", "position", "job"),
+        ("工作地点", "地点", "城市", "base", "location"),
+        ("批次", "类型", "性质", "type"),
+        ("行业", "industry"),
+        ("开放", "开启", "发布", "创建时间", "更新时间", "date", "time"),
+        ("截止", "deadline"),
+        ("投递链接", "招聘官网", "相关链接", "链接", "url"),
+        ("内推", "referral"),
+    ):
+        add_matches(keywords)
+    if len(selected) < 4:
+        for name in names:
+            if "备注" not in name and "说明" not in name:
+                add(name)
+    return selected[:10]
 
 
 def lark_data(args: argparse.Namespace) -> dict[str, Any]:
@@ -279,6 +331,8 @@ def cmd_tencent_bind(args: argparse.Namespace) -> None:
     print(f"工作表：{data.get('sheet_name') or data.get('sheet_id') or '未识别'}")
     print(f"记录数：{data.get('record_count', 0)}")
     print(f"字段数：{len(data.get('fields_meta', []))}")
+    print()
+    print(query_guide_text(data))
 
 
 def cmd_source_add(args: argparse.Namespace) -> None:
@@ -330,6 +384,13 @@ def add_filter_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--until", default=None, help="结束日期 YYYY-MM-DD（含当天）")
     parser.add_argument("--title-field", default="", help="记录标题字段名")
     parser.add_argument("--show-fields", default="", help="额外展示字段，逗号分隔")
+    parser.add_argument(
+        "--format",
+        dest="output_format",
+        choices=["auto", "detailed", "compact"],
+        default="auto",
+        help="输出格式；auto 在超过 20 条时使用统一紧凑格式",
+    )
     parser.add_argument("--key-field", default="", help="快照对比使用的稳定唯一字段")
     parser.add_argument("--previous-state", default=None, help="与上次保存的 JSON 状态比较；不要求时间字段")
     parser.add_argument("--state-out", default=None, help="保存本次完整状态为 JSON，供下次比较")

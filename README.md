@@ -114,6 +114,8 @@ After confirming the table, subtable, and detected fields, the agent guides you 
 2. Run once, every N days, each workday, or weekly at a chosen time?
 3. Which fields should appear in the digest or notification?
 
+Immediately after the first bind or read, the agent shows concrete defaults for the detected date/filter field, a seven-day query range, and display fields. You can accept all three by saying "Use the defaults" or change them together.
+
 A second round can refine filters, whether no-change runs stay silent, and where results should go. The agent recommends defaults from the detected schema instead of making you design the setup from scratch.
 
 Recurring schedules require automation support from the current agent platform. Before creating one, the agent confirms the time, timezone, and destination.
@@ -191,5 +193,7 @@ Changed
 • Backend Engineer
     Deadline: 2026-07-20 → 2026-07-31
 ```
+
+Every record in one result uses the same field order and link format. Results over 20 records automatically switch to a compact one-line layout without dropping application links; missing requested fields are shown as `—`.
 
 [MIT License](./LICENSE)
