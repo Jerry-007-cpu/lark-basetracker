@@ -1,6 +1,6 @@
 import unittest
 
-from scripts.basetracker.lark import LarkBaseProvider
+from scripts.basetracker.lark import LarkBaseProvider, canonicalize_lark_base_link
 
 
 class FakeLarkProvider(LarkBaseProvider):
@@ -25,6 +25,14 @@ class MultiTableLarkProvider(FakeLarkProvider):
 
 
 class LarkProviderTests(unittest.TestCase):
+    def test_wiki_link_can_be_saved_as_a_canonical_base_target(self):
+        link = canonicalize_lark_base_link(
+            "https://Example.feishu.cn/wiki/wiki123?from=recent",
+            "app123",
+            "tbl1",
+        )
+        self.assertEqual(link, "https://example.feishu.cn/base/app123?table=tbl1")
+
     def test_base_read_normalizes_record_ids(self):
         data = FakeLarkProvider().read("https://example.feishu.cn/base/app123")
         self.assertEqual(data["table_id"], "tbl1")

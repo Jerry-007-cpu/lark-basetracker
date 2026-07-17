@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 from typing import Any, Callable
+from urllib.parse import urlencode, urlsplit, urlunsplit
 
 
 FIELD_TYPE_NAME = {
@@ -16,6 +17,14 @@ FIELD_TYPE_NAME = {
     17: "附件", 18: "关联", 19: "查找", 20: "公式",
     1001: "创建时间", 1002: "最后更新时间", 1003: "创建人", 1004: "修改人",
 }
+
+
+def canonicalize_lark_base_link(link: str, app_token: str, table_id: str = "") -> str:
+    parsed = urlsplit(link)
+    if not parsed.netloc or not app_token:
+        raise ValueError("无法生成飞书多维表格标准链接。")
+    query = urlencode({"table": table_id}) if table_id else ""
+    return urlunsplit((parsed.scheme or "https", parsed.netloc.lower(), f"/base/{app_token}", query, ""))
 
 
 def resolve_executable(command: str) -> str:

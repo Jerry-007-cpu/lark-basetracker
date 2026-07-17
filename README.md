@@ -79,6 +79,8 @@ This requires Node.js and `npx`. **Without `lark-cli`, the user authorization li
 
 An existing CLI installation is reused. If the application is already configured and authorization remains valid, the agent reads the table directly. The Skill uses your user identity by default and initially requests only Base record retrieval (`base:record:retrieve`), so view-only permission works and the bot does not need to be added as a table collaborator. A Wiki link may additionally require the read-only `wiki:node:read` scope to resolve the underlying Base.
 
+Binding a Feishu/Lark table follows the same flow as Tencent Docs: verify with the signed-in user, detect the concrete subtable, fields, and record count, save the normalized Base target, then show the three default query settings. The same consistent output-format guarantee applies to both providers.
+
 #### Tencent Docs
 
 Follow these steps for the first connection:

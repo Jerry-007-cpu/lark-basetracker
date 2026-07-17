@@ -23,7 +23,7 @@ from basetracker.core import (
     render_records,
     save_state,
 )
-from basetracker.lark import FIELD_TYPE_NAME, LarkBaseProvider
+from basetracker.lark import FIELD_TYPE_NAME, LarkBaseProvider, canonicalize_lark_base_link
 from basetracker.mcp import MCPError
 from basetracker.sources import (
     DEFAULT_REGISTRY_PATH,
@@ -216,6 +216,26 @@ def cmd_list(args: argparse.Namespace) -> None:
     write_output(args.out, text)
     if args.wechat:
         push_wechat(args, text)
+
+
+def cmd_lark_bind(args: argparse.Namespace) -> None:
+    data = lark_data(args)
+    name = args.name.strip() or data.get("table_name") or data.get("table_id") or "飞书多维表格"
+    source = add_source(
+        args.registry,
+        name=name,
+        kind="lark",
+        location=canonicalize_lark_base_link(args.link, data.get("app_token", ""), data.get("table_id", "")),
+        table_id=data.get("table_id", ""),
+        replace=True,
+    )
+    print(f"已验证并保存追踪源：{source_label(source)}")
+    print("读取身份：飞书用户（只读调用）")
+    print(f"数据表：{data.get('table_name') or data.get('table_id') or '未识别'}")
+    print(f"记录数：{len(data.get('records', []))}")
+    print(f"字段数：{len(data.get('fields_meta', []))}")
+    print()
+    print(query_guide_text(data))
 
 
 def local_data(path: str, sheet_name: str | None = None) -> dict[str, Any]:
@@ -446,6 +466,12 @@ def build_parser() -> argparse.ArgumentParser:
     list_parser.add_argument("--wechat-to", default="")
     list_parser.add_argument("--wxclawbot", default="wxclawbot")
     list_parser.set_defaults(func=cmd_list)
+
+    lark_bind = subparsers.add_parser("lark-bind", help="用飞书用户只读身份验证并保存追踪源")
+    add_lark_args(lark_bind)
+    lark_bind.add_argument("--name", default="", help="追踪源简称；默认使用数据表名称")
+    add_registry_arg(lark_bind)
+    lark_bind.set_defaults(func=cmd_lark_bind)
 
     snapshot_parser = subparsers.add_parser("snapshot", help="整理本地 CSV/TSV/XLSX，并可保存或比较状态")
     snapshot_parser.add_argument("--file", required=True)
