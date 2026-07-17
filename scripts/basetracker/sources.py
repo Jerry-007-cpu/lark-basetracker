@@ -8,6 +8,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 
 REGISTRY_SCHEMA_VERSION = 1
@@ -68,9 +69,14 @@ def _clean_name(name: str) -> str:
 
 
 def _target_key(source: dict[str, Any]) -> tuple[str, str, str, str]:
+    kind = str(source.get("kind", ""))
+    location = str(source.get("location", ""))
+    if kind == "tencent":
+        parsed = urlsplit(location)
+        location = f"{parsed.netloc.lower()}{parsed.path.rstrip('/')}"
     return (
-        str(source.get("kind", "")),
-        str(source.get("location", "")),
+        kind,
+        location,
         str(source.get("table_id", "")),
         str(source.get("sheet_id", "")),
     )
@@ -114,15 +120,21 @@ def add_source(
         ),
         None,
     )
-    target_match = next((item for item in sources if _target_key(item) == _target_key(source)), None)
+    target_index = next(
+        (index for index, item in enumerate(sources) if _target_key(item) == _target_key(source)),
+        None,
+    )
 
-    if name_index is not None:
+    if name_index is not None and target_index is not None and name_index != target_index:
+        raise ValueError(f"追踪源名称“{cleaned_name}”和目标分别匹配了不同记录，无法安全替换。")
+    replace_index = name_index if name_index is not None else target_index
+    if replace_index is not None:
         if not replace:
-            raise ValueError(f"追踪源名称“{cleaned_name}”已存在；请换一个名称或使用 --replace。")
-        source["created_at"] = sources[name_index].get("created_at", now)
-        sources[name_index] = source
-    elif target_match:
-        raise ValueError(f"这个数据源已保存为“{target_match.get('name', '')}”。")
+            if name_index is not None:
+                raise ValueError(f"追踪源名称“{cleaned_name}”已存在；请换一个名称或使用 --replace。")
+            raise ValueError(f"这个数据源已保存为“{sources[target_index].get('name', '')}”。")
+        source["created_at"] = sources[replace_index].get("created_at", now)
+        sources[replace_index] = source
     else:
         sources.append(source)
 

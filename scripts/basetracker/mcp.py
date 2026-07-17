@@ -3,13 +3,32 @@
 from __future__ import annotations
 
 import json
+import os
+import ssl
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Any, Callable
 
 
 class MCPError(RuntimeError):
     pass
+
+
+def _default_ssl_context() -> ssl.SSLContext:
+    """Build a verified context even when python.org Python lacks its CA bundle."""
+    verify_paths = ssl.get_default_verify_paths()
+    candidates = [
+        os.environ.get("SSL_CERT_FILE", ""),
+        verify_paths.cafile or "",
+        "/private/etc/ssl/cert.pem",
+        "/etc/ssl/cert.pem",
+        "/etc/ssl/certs/ca-certificates.crt",
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file():
+            return ssl.create_default_context(cafile=candidate)
+    return ssl.create_default_context()
 
 
 def _parse_sse(body: str) -> list[dict[str, Any]]:
@@ -35,11 +54,13 @@ class MCPClient:
         token: str,
         timeout: int = 30,
         requester: Callable[[dict[str, Any], dict[str, str]], tuple[int, dict[str, str], str]] | None = None,
+        ssl_context: ssl.SSLContext | None = None,
     ):
         self.endpoint = endpoint
         self.token = token
         self.timeout = timeout
         self.requester = requester
+        self.ssl_context = ssl_context or _default_ssl_context()
         self.session_id = ""
         self.initialized = False
         self.next_id = 1
@@ -62,7 +83,11 @@ class MCPClient:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            with urllib.request.urlopen(
+                request,
+                timeout=self.timeout,
+                context=self.ssl_context,
+            ) as response:
                 return response.status, dict(response.headers.items()), response.read().decode("utf-8")
         except urllib.error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="replace")

@@ -63,6 +63,30 @@ class SourceRegistryTests(unittest.TestCase):
             self.assertEqual(removed["name"], "岗位表")
             self.assertEqual(load_registry(registry)["sources"], [])
 
+    def test_tencent_target_can_be_renamed_after_verified_binding(self):
+        with tempfile.TemporaryDirectory() as directory:
+            registry = str(Path(directory) / "sources.json")
+            add_source(
+                registry,
+                name="腾讯文档智能表格",
+                kind="tencent",
+                location="https://docs.qq.com/smartsheet/ABC123?tab=sheet-1&viewId=view-1",
+                sheet_id="sheet-1",
+            )
+            add_source(
+                registry,
+                name="27秋招正式批+提前批",
+                kind="tencent",
+                location="https://docs.qq.com/smartsheet/ABC123?tab=sheet-1",
+                sheet_id="sheet-1",
+                sheet_name="27秋招正式批+提前批",
+                replace=True,
+            )
+            sources = load_registry(registry)["sources"]
+            self.assertEqual(len(sources), 1)
+            self.assertEqual(sources[0]["name"], "27秋招正式批+提前批")
+            self.assertEqual(sources[0]["sheet_name"], "27秋招正式批+提前批")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -34,7 +34,13 @@ from basetracker.sources import (
     render_source_picker,
     source_label,
 )
-from basetracker.tencent_docs import DEFAULT_ENDPOINT, TencentDocsProvider
+from basetracker.tencent_docs import (
+    DEFAULT_ENDPOINT,
+    DEFAULT_TOOLS_CACHE,
+    DEFAULT_TOOLS_CACHE_TTL,
+    TencentDocsProvider,
+    canonicalize_tencent_docs_link,
+)
 
 
 def log(message: str) -> None:
@@ -121,6 +127,8 @@ def inspect_text(data: dict[str, Any]) -> str:
         lines.append(f"sheet_id：{data['sheet_id']}")
     if data.get("sheet_name"):
         lines.append(f"工作表：{data['sheet_name']}")
+    if data.get("record_count") is not None:
+        lines.append(f"记录数：{data['record_count']}")
     lines.append(f"字段（{len(fields)} 个）：")
     for field in fields:
         field_type = field.get("type")
@@ -204,31 +212,73 @@ def tencent_provider(args: argparse.Namespace) -> TencentDocsProvider:
         token_path = Path(args.token_file).expanduser()
         if token_path.is_file():
             token = token_path.read_text(encoding="utf-8").strip()
-    return TencentDocsProvider(token, endpoint=args.mcp_url, logger=log)
+    provider = TencentDocsProvider(
+        token,
+        endpoint=args.mcp_url,
+        logger=log,
+        tools_cache_path=getattr(args, "tools_cache", DEFAULT_TOOLS_CACHE),
+        tools_cache_ttl=getattr(args, "tools_cache_ttl", DEFAULT_TOOLS_CACHE_TTL),
+    )
+    if getattr(args, "refresh_tools", False):
+        provider.tools(refresh=True)
+    return provider
 
 
-def tencent_data(args: argparse.Namespace) -> dict[str, Any]:
+def tencent_data(args: argparse.Namespace, metadata_only: bool = False) -> dict[str, Any]:
     return tencent_provider(args).read(
         args.link,
         file_id=args.file_id,
         sheet_id=args.sheet_id,
         sheet_name=args.sheet_name,
+        metadata_only=metadata_only,
     )
 
 
 def cmd_tencent_tools(args: argparse.Namespace) -> None:
     tools = tencent_provider(args).tools()
-    print(json.dumps(list(tools.values()), ensure_ascii=False, indent=2))
+    relevant_suffixes = (
+        "get_content",
+        "smartsheet.list_tables",
+        "smartsheet.list_fields",
+        "smartsheet.list_records",
+    )
+    selected = list(tools.values()) if args.all else [
+        tool for name, tool in tools.items()
+        if any(name.endswith(suffix) for suffix in relevant_suffixes)
+    ]
+    summary = [
+        {"name": tool.get("name", ""), "inputSchema": tool.get("inputSchema", {})}
+        for tool in selected
+    ]
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 
 def cmd_tencent_inspect(args: argparse.Namespace) -> None:
-    print(inspect_text(tencent_data(args)))
+    print(inspect_text(tencent_data(args, metadata_only=True)))
 
 
 def cmd_tencent_list(args: argparse.Namespace) -> None:
     _state, text = state_and_text(args, tencent_data(args), heading="腾讯文档更新")
     print(text)
     write_output(args.out, text)
+
+
+def cmd_tencent_bind(args: argparse.Namespace) -> None:
+    data = tencent_data(args, metadata_only=True)
+    name = args.name.strip() or data.get("sheet_name") or data.get("file_id") or "腾讯文档表格"
+    source = add_source(
+        args.registry,
+        name=name,
+        kind="tencent",
+        location=canonicalize_tencent_docs_link(args.link, data.get("sheet_id", "")),
+        sheet_id=data.get("sheet_id", ""),
+        sheet_name=data.get("sheet_name", ""),
+        replace=True,
+    )
+    print(f"已验证并保存追踪源：{source_label(source)}")
+    print(f"工作表：{data.get('sheet_name') or data.get('sheet_id') or '未识别'}")
+    print(f"记录数：{data.get('record_count', 0)}")
+    print(f"字段数：{len(data.get('fields_meta', []))}")
 
 
 def cmd_source_add(args: argparse.Namespace) -> None:
@@ -307,6 +357,9 @@ def add_tencent_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--mcp-url", default=DEFAULT_ENDPOINT)
     parser.add_argument("--token-env", default="TENCENT_DOCS_TOKEN", help="保存 Token 的环境变量名")
     parser.add_argument("--token-file", default="~/.config/lark-basetracker/tencent_docs_token", help="未设置环境变量时读取的 Token 文件")
+    parser.add_argument("--tools-cache", default=DEFAULT_TOOLS_CACHE, help="腾讯文档工具定义缓存文件")
+    parser.add_argument("--tools-cache-ttl", type=int, default=DEFAULT_TOOLS_CACHE_TTL, help="工具缓存有效期（秒）")
+    parser.add_argument("--refresh-tools", action="store_true", help="忽略缓存并刷新工具定义")
 
 
 def add_registry_arg(parser: argparse.ArgumentParser) -> None:
@@ -356,6 +409,10 @@ def build_parser() -> argparse.ArgumentParser:
     tools_parser.add_argument("--mcp-url", default=DEFAULT_ENDPOINT)
     tools_parser.add_argument("--token-env", default="TENCENT_DOCS_TOKEN")
     tools_parser.add_argument("--token-file", default="~/.config/lark-basetracker/tencent_docs_token")
+    tools_parser.add_argument("--tools-cache", default=DEFAULT_TOOLS_CACHE)
+    tools_parser.add_argument("--tools-cache-ttl", type=int, default=DEFAULT_TOOLS_CACHE_TTL)
+    tools_parser.add_argument("--refresh-tools", action="store_true")
+    tools_parser.add_argument("--all", action="store_true", help="输出全部工具定义；默认只显示读取表格需要的工具")
     tools_parser.set_defaults(func=cmd_tencent_tools)
 
     tencent_inspect = subparsers.add_parser("tencent-inspect", help="检查腾讯文档在线表格字段")
@@ -366,6 +423,12 @@ def build_parser() -> argparse.ArgumentParser:
     add_tencent_args(tencent_list)
     add_filter_args(tencent_list)
     tencent_list.set_defaults(func=cmd_tencent_list)
+
+    tencent_bind = subparsers.add_parser("tencent-bind", help="验证腾讯文档后保存为追踪源")
+    add_tencent_args(tencent_bind)
+    tencent_bind.add_argument("--name", default="", help="追踪源简称；默认使用工作表名称")
+    add_registry_arg(tencent_bind)
+    tencent_bind.set_defaults(func=cmd_tencent_bind)
 
     source_add = subparsers.add_parser("source-add", help="保存一个有名称的追踪源")
     source_add.add_argument("--name", required=True, help="对话中使用的简短名称")

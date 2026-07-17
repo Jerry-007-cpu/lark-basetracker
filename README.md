@@ -96,6 +96,8 @@ Follow these steps for the first connection:
 
 If you paste a token directly after `%` or `$`, the shell treats it as a command and may store it in terminal history. Revoke that token immediately on the official authorization page, generate a new one, and do not reuse the exposed token.
 
+After configuration, send the Tencent Docs link and ask the agent to bind it. The agent detects the specific worksheet from the link, verifies its name, fields, and record count, and only then saves it under the real worksheet name. The first inspection does not download the full table; later reads reuse the saved worksheet and tool metadata.
+
 #### CSV, TSV, or XLSX
 
 No account connection is needed. Send the file directly to the agent.
