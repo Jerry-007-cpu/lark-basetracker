@@ -21,7 +21,7 @@ The same workflow also works for projects, leads, content calendars, vendors, an
 
 ## 2. Install
 
-Codex, Claude Code, OpenClaw, and QClaw are supported.
+Codex, Claude Code, and OpenClaw are supported.
 
 ### Codex, Claude Code, and OpenClaw
 
@@ -35,49 +35,9 @@ You can also send this request directly to your agent:
 
 ```text
 Install this Skill for me: https://github.com/Jerry-007-cpu/lark-basetracker
-After installation, guide me through connecting the table I want to track.
 ```
 
 Start a new conversation after installation.
-
-### QClaw
-
-Send the same installation request to QClaw. QClaw will use the repository adapter to install both the Skill and its bundled runtime files.
-
-<details>
-<summary>Fallback when QClaw installation fails</summary>
-
-```bash
-git clone https://github.com/Jerry-007-cpu/lark-basetracker.git
-cd lark-basetracker
-python3 scripts/install_agent.py --platform qclaw
-```
-
-Restart QClaw and review/enable the Skill afterward.
-
-</details>
-
-### Start using it
-
-After installation, invoke `$lark-basetracker` or click the Skill's default prompt. If no source is saved, the agent shows one short choice:
-
-```text
-1. Feishu/Lark Base
-2. Tencent Docs online table
-3. CSV, TSV, or XLSX file
-```
-
-Choose one source and the agent guides only that connection. If sources already exist, it shows the saved-source picker instead. After the first successful read, it recommends the date/filter field, a seven-day range, and display fields; accept them together or change them in one reply.
-
-<details>
-<summary>Connection and security notes</summary>
-
-- Feishu/Lark uses the signed-in user with minimum read access; a bot does not need to be added as a collaborator. The agent installs/configures the official `lark-cli` only when needed.
-- Tencent Docs uses a personal token from the [official authorization page](https://docs.qq.com/open/auth/mcp.html). Enter it only in the hidden Terminal prompt provided by the agent, never directly in chat or at a `%`/`$` shell prompt.
-- CSV, TSV, and XLSX files require no account connection.
-- If a Feishu setup or authorization page keeps spinning, temporarily disabling a VPN/proxy may help; it is not required in normal cases.
-
-</details>
 
 ## 3. Supported data sources
 
@@ -91,26 +51,44 @@ Choose one source and the agent guides only that connection. If sources already 
 
 A time field is optional: use date filtering when one exists, or automatically compare saved snapshots when it does not.
 
-## 4. Use it through conversation
+## 4. Automatic guidance examples
 
-After installation and the relevant data-source connection, send a table link or file with your request:
+### First launch
 
-```text
-Here is my jobs table: <table link>
-Summarize roles added or updated in the last 7 days. Include company, role, location, and application link.
-```
+Invoke `$lark-basetracker`. With no saved source, the agent starts here:
 
 ```text
-What was added, edited, or removed since the last snapshot?
-<table link>
+Welcome to lark-basetracker. Choose your first source:
+1. Feishu/Lark Base
+2. Tencent Docs online table
+3. CSV, TSV, or XLSX file
+
+Reply with a number and I will guide only that source.
 ```
+
+### After connecting a table
+
+The agent detects the real table and proposes ready-to-use defaults:
 
 ```text
-Summarize tasks updated in this project table this week. Include owner and status.
-<table link>
+First query settings:
+1. Filter field: Open date
+2. Query range: Last 7 days
+3. Display fields: Company, role, location, batch, open date, deadline, application link
+
+Reply "Use defaults" or change any setting in one message.
 ```
 
-The agent detects fields, chooses date filtering or snapshot comparison, and formats the result. Normal users do not need to run processing commands.
+### Returning with saved sources
+
+Invoke the Skill again and the agent routes the query instead of repeating setup:
+
+```text
+Which source should I check?
+1. Feishu/Lark | Campus Roles
+2. Tencent Docs | Referral Digest
+3. Summarize all
+```
 
 ### Tracking multiple tables
 
@@ -122,21 +100,7 @@ Feishu/Lark authorization applies to your user identity; it is not repeated for 
 
 Frequently used tables can be saved under short names such as "Campus Roles," "Experienced Roles," or "Referral Digest." These tracking sources are stored locally, with Feishu/Lark and Tencent Docs configurations kept separate.
 
-When you invoke the Skill again:
-
-- Say "Check Campus Roles for updates in the last 7 days" to route directly to that source.
-- If only one source is saved, a vague request such as "Check for updates" uses it directly.
-- If multiple sources are saved and the request is ambiguous, the agent shows a short picker:
-
-```text
-You have 3 saved tracking sources. Which one should I check?
-1. Feishu/Lark | Campus Roles
-2. Feishu/Lark | Experienced Roles
-3. Tencent Docs | Referral Digest
-4. Summarize all
-```
-
-After saving a second source, the agent explains once that you can ask for a source by name or request a summary of all sources. The Skill cannot open a prompt by itself without a scheduler; "invoke" means clicking the Skill, sending a request, or starting a scheduled run.
+If one source is saved, a vague update request uses it directly. With multiple sources, the agent asks only when the requested source cannot be identified.
 
 Example output:
 
