@@ -57,70 +57,27 @@ Restart QClaw and review/enable the Skill afterward.
 
 </details>
 
-### Connect a table for the first time
+### Start using it
 
-Feishu and Tencent Docs are separate data sources. **Connect only the one you want to use; you do not need to set up both.**
-
-#### Feishu/Lark Base
-
-Ask your agent:
+After installation, invoke `$lark-basetracker` or click the Skill's default prompt. If no source is saved, the agent shows one short choice:
 
 ```text
-Set up the first Feishu connection for lark-basetracker.
+1. Feishu/Lark Base
+2. Tencent Docs online table
+3. CSV, TSV, or XLSX file
 ```
 
-The agent first checks for the official `lark-cli`. If it is missing, the agent asks for your permission before running the official recommended installer:
+Choose one source and the agent guides only that connection. If sources already exist, it shows the saved-source picker instead. After the first successful read, it recommends the date/filter field, a seven-day range, and display fields; accept them together or change them in one reply.
 
-```bash
-npx @larksuite/cli@latest install
-```
+<details>
+<summary>Connection and security notes</summary>
 
-This requires Node.js and `npx`. **Without `lark-cli`, the user authorization link cannot be generated yet.** After installation, the agent sends the Feishu/Lark application setup page first, then asks the CLI to generate the user authorization link. If either page fails to load, keeps spinning, or fails verification, temporarily disable your VPN/proxy and retry; you can turn it back on afterward.
+- Feishu/Lark uses the signed-in user with minimum read access; a bot does not need to be added as a collaborator. The agent installs/configures the official `lark-cli` only when needed.
+- Tencent Docs uses a personal token from the [official authorization page](https://docs.qq.com/open/auth/mcp.html). Enter it only in the hidden Terminal prompt provided by the agent, never directly in chat or at a `%`/`$` shell prompt.
+- CSV, TSV, and XLSX files require no account connection.
+- If a Feishu setup or authorization page keeps spinning, temporarily disabling a VPN/proxy may help; it is not required in normal cases.
 
-An existing CLI installation is reused. If the application is already configured and authorization remains valid, the agent reads the table directly. The Skill uses your user identity by default and initially requests only Base record retrieval (`base:record:retrieve`), so view-only permission works and the bot does not need to be added as a table collaborator. A Wiki link may additionally require the read-only `wiki:node:read` scope to resolve the underlying Base.
-
-Binding a Feishu/Lark table follows the same flow as Tencent Docs: verify with the signed-in user, detect the concrete subtable, fields, and record count, save the normalized Base target, then show the three default query settings. The same consistent output-format guarantee applies to both providers.
-
-#### Tencent Docs
-
-Follow these steps for the first connection:
-
-1. Get a new personal token from the [official Tencent Docs authorization page](https://docs.qq.com/open/auth/mcp.html).
-2. Ask the agent to securely configure Tencent Docs for `lark-basetracker`. The agent locates the configuration script and gives you one command beginning with `python3` that contains its full path.
-3. Run that complete command in Terminal first. A line ending in `%` or `$` is the shell prompt; **do not paste the token directly there**.
-4. Paste the token and press Enter only after Terminal displays this prompt:
-
-   ```text
-   粘贴腾讯文档 MCP Token（输入不会显示）：
-   ```
-
-   No characters appear while you type or paste; this is expected. After `已安全保存` appears, return to the conversation and tell the agent that configuration is complete so it can verify the connection and read the table.
-
-If you paste a token directly after `%` or `$`, the shell treats it as a command and may store it in terminal history. Revoke that token immediately on the official authorization page, generate a new one, and do not reuse the exposed token.
-
-After configuration, send the Tencent Docs link and ask the agent to bind it. The agent detects the specific worksheet from the link, verifies its name, fields, and record count, and only then saves it under the real worksheet name. The first inspection does not download the full table; later reads reuse the saved worksheet and tool metadata.
-
-Tencent Docs date columns may be returned as text. The tracker recognizes full dates and common month-day forms such as `2026-07-17`, `2026.7.17`, `7.17`, and `7月17日`; a missing year uses the current year. Notes or invalid dates mixed into the date column are skipped record by record.
-
-#### CSV, TSV, or XLSX
-
-No account connection is needed. Send the file directly to the agent.
-
-Never paste App Secrets, access tokens, or Tencent Docs tokens directly into chat, and do not send screenshots that show a complete token.
-
-### What the agent asks after the first read
-
-After confirming the table, subtable, and detected fields, the agent guides you through a tracking setup in short rounds. The first round asks:
-
-1. Track additions, edits, removals, upcoming deadlines, or a combination?
-2. Run once, every N days, each workday, or weekly at a chosen time?
-3. Which fields should appear in the digest or notification?
-
-Immediately after the first bind or read, the agent shows concrete defaults for the detected date/filter field, a seven-day query range, and display fields. You can accept all three by saying "Use the defaults" or change them together.
-
-A second round can refine filters, whether no-change runs stay silent, and where results should go. The agent recommends defaults from the detected schema instead of making you design the setup from scratch.
-
-Recurring schedules require automation support from the current agent platform. Before creating one, the agent confirms the time, timezone, and destination.
+</details>
 
 ## 3. Supported data sources
 

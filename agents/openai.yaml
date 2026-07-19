@@ -1,4 +1,4 @@
 interface:
   display_name: "lark-basetracker"
   short_description: "Choose and track Feishu or Tencent Docs tables"
-  default_prompt: "使用 $lark-basetracker 显示我已保存的追踪源，并让我选择一个来源或汇总全部来源的最近更新。"
+  default_prompt: "使用 $lark-basetracker 开始：如果还没有保存来源，请引导我选择飞书、腾讯文档或表格文件并完成首次连接；如果已有来源，请显示来源供我查询。"

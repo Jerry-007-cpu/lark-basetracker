@@ -171,7 +171,14 @@ def source_label(source: dict[str, Any]) -> str:
 
 def render_source_picker(sources: list[dict[str, Any]]) -> str:
     if not sources:
-        return "还没有保存追踪源。请发送飞书、腾讯文档链接或表格文件。"
+        return "\n".join([
+            "欢迎使用 lark-basetracker。请选择首次连接方式：",
+            "1. 飞书多维表格（用户身份只读）",
+            "2. 腾讯文档在线表格",
+            "3. CSV、TSV 或 XLSX 文件",
+            "",
+            "直接回复序号即可，我会按所选来源逐步引导。",
+        ])
     if len(sources) == 1:
         return f"当前追踪源：{source_label(sources[0])}"
     lines = [f"你已保存 {len(sources)} 个追踪源，想查看哪个？"]

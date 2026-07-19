@@ -13,6 +13,13 @@ from scripts.basetracker.sources import (
 
 
 class SourceRegistryTests(unittest.TestCase):
+    def test_empty_registry_renders_first_run_onboarding(self):
+        picker = render_source_picker([])
+        self.assertIn("请选择首次连接方式", picker)
+        self.assertIn("1. 飞书多维表格", picker)
+        self.assertIn("2. 腾讯文档在线表格", picker)
+        self.assertIn("3. CSV、TSV 或 XLSX 文件", picker)
+
     def test_sources_are_saved_separately_and_rendered_as_a_picker(self):
         with tempfile.TemporaryDirectory() as directory:
             registry = str(Path(directory) / "sources.json")
