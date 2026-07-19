@@ -1,122 +1,122 @@
-**English** | [中文](./README.zh-CN.md)
+[English](./README.en.md) | **中文**
 
 <div align="center">
   <h1>lark-basetracker</h1>
-  <p><strong>Send a table link to your agent and ask what changed.</strong></p>
-  <p>Supports Feishu/Lark Base, Tencent Docs online tables, and CSV / TSV / XLSX files.</p>
+  <p><strong>把表格链接发给 Agent，直接问“最近更新了什么”。</strong></p>
+  <p>支持飞书多维表格、腾讯文档在线表格，以及 CSV / TSV / XLSX。</p>
 </div>
 
-## 1. What it does
+## 1. 它能做什么
 
-`lark-basetracker` is a conversational Agent Skill that reads a table, detects its fields, and reports recently added, changed, or removed records.
+`lark-basetracker` 是一个对话式 Agent Skill。它会读取表格、识别字段，并输出最近新增、修改或删除的记录。
 
-It is designed first for job-update creators:
+主要面向求职博主，例如：
 
-- Collect newly posted or reopened graduate, internship, and experienced roles
-- Extract company, role, location, deadline, and application links
-- Compare two table states and show the exact field changes
-- Produce a clean digest for communities, newsletters, or chat groups
+- 整理今天新增或重新开放的校招、实习和社招岗位
+- 提取公司、岗位、城市、截止时间和投递链接
+- 比较两次表格内容，找出职位信息具体改了什么
+- 生成适合发社群、公众号或微信的更新清单
 
-The same workflow also works for projects, leads, content calendars, vendors, and other tables.
+同样可以用于项目进度、客户线索、内容排期、供应商资料等其他表格。
 
-## 2. Install
+## 2. 安装
 
-Codex, Claude Code, and OpenClaw are supported.
+支持 Codex、Claude Code 和 OpenClaw。
 
-### Codex, Claude Code, and OpenClaw
+### Codex、Claude Code、OpenClaw
 
-Copy and run one command:
+复制这一条命令即可：
 
 ```bash
 npx skills add Jerry-007-cpu/lark-basetracker -g
 ```
 
-You can also send this request directly to your agent:
+也可以直接把这句话发给 Agent：
 
 ```text
-Install this Skill for me: https://github.com/Jerry-007-cpu/lark-basetracker
+请帮我安装这个 Skill：https://github.com/Jerry-007-cpu/lark-basetracker
 ```
 
-Start a new conversation after installation.
+安装完成后，新开一个对话即可使用。
 
-## 3. Supported data sources
+## 3. 支持的数据来源
 
-| Source | Current capability |
+| 数据来源 | 当前能力 |
 | --- | --- |
-| Feishu/Lark Base link | Read online with the signed-in user's existing view permission |
-| Tencent Docs SmartSheet | Read tables, fields, and records through the official MCP server |
-| Tencent Docs regular table | Read through the official MCP server and recover table structure |
-| CSV / TSV / XLSX | Read locally without an online account |
-| Two files or saved states | Compare additions, field-level edits, and removals |
+| 飞书多维表格链接 | 使用本人账号原有查看权限在线读取 |
+| 腾讯文档智能表格 | 通过腾讯文档官方 MCP 读取工作表、字段和记录 |
+| 腾讯文档普通在线表格 | 通过官方 MCP 读取内容并恢复表格结构 |
+| CSV / TSV / XLSX | 本地读取，不连接在线账号 |
+| 两次快照或状态文件 | 比较新增、逐字段修改和删除 |
 
-A time field is optional: use date filtering when one exists, or automatically compare saved snapshots when it does not.
+表格不强制要求时间字段：有时间字段时按日期筛选；没有时自动保存并比较两次快照。
 
-## 4. Automatic guidance examples
+## 4. 自动引导示例
 
-### First launch
+### 第一次打开
 
-Invoke `$lark-basetracker`. With no saved source, the agent starts here:
-
-```text
-Welcome to lark-basetracker. Choose your first source:
-1. Feishu/Lark Base
-2. Tencent Docs online table
-3. CSV, TSV, or XLSX file
-
-Reply with a number and I will guide only that source.
-```
-
-### After connecting a table
-
-The agent detects the real table and proposes ready-to-use defaults:
+调用 `$lark-basetracker`。还没有保存来源时，Agent 会从这里开始：
 
 ```text
-First query settings:
-1. Filter field: Open date
-2. Query range: Last 7 days
-3. Display fields: Company, role, location, batch, open date, deadline, application link
+欢迎使用 lark-basetracker。请选择首次连接方式：
+1. 飞书多维表格
+2. 腾讯文档在线表格
+3. CSV、TSV 或 XLSX 文件
 
-Reply "Use defaults" or change any setting in one message.
+直接回复序号即可，我会只引导所选来源。
 ```
 
-### Returning with saved sources
+### 表格连接成功后
 
-Invoke the Skill again and the agent routes the query instead of repeating setup:
+Agent 会识别真实数据表并给出可以直接采用的默认值：
 
 ```text
-Which source should I check?
-1. Feishu/Lark | Campus Roles
-2. Tencent Docs | Referral Digest
-3. Summarize all
+首次查询设置：
+1. 筛选字段：开放日期
+2. 查询范围：最近 7 天
+3. 展示字段：公司、岗位、地点、批次、开放日期、截止日期、投递链接
+
+回复“按默认设置查询”，也可以一次修改任意设置。
 ```
 
-### Tracking multiple tables
+### 已经保存过来源
 
-Feishu/Lark authorization applies to your user identity; it is not repeated for every table. Tracking settings and snapshots are still isolated per table:
-
-- If one Base contains multiple subtables and the link does not identify one, the agent lists the names and asks you to choose instead of silently selecting the first.
-- Multiple independent table links get separate names, display fields, filters, and snapshot states.
-- Tables are combined into one daily or weekly digest only when you explicitly request a digest group and choose a stable deduplication field such as role ID or application link.
-
-Frequently used tables can be saved under short names such as "Campus Roles," "Experienced Roles," or "Referral Digest." These tracking sources are stored locally, with Feishu/Lark and Tencent Docs configurations kept separate.
-
-If one source is saved, a vague update request uses it directly. With multiple sources, the agent asks only when the requested source cannot be identified.
-
-Example output:
+再次调用 Skill 时，Agent 会直接进入查询选择，不重复配置：
 
 ```text
-📌 Table snapshot changes  Added 1 · Changed 1 · Removed 0
-
-Added
-• Data Product Manager
-    Company: Example Tech
-    Location: Shenzhen
-
-Changed
-• Backend Engineer
-    Deadline: 2026-07-20 → 2026-07-31
+请选择本次查询的数据源：
+1. 飞书｜秋招岗位
+2. 腾讯文档｜内推汇总
+3. 全部汇总
 ```
 
-Every record in one result uses the same field order and link format. Results over 20 records automatically switch to a compact one-line layout without dropping application links; missing requested fields are shown as `—`.
+### 同时追踪多张表
+
+飞书授权是用户身份级的，不是每张表重新授权一次。但每张表的追踪规则和快照状态会分开保存：
+
+- 同一个多维表格里有多张数据表时，如果链接没有指定具体数据表，Agent 会列出名称请你选择，不会默认读第一张。
+- 同时追踪多个独立链接时，每张表都有独立名称、展示字段、筛选条件和快照，不会串表。
+- 需要把多张表合成一份日报或周报时，再明确建立“汇总组”，并选择职位 ID、投递链接等去重依据。
+
+持续使用的表可以保存一个简称，例如“秋招岗位”“社招岗位”“内推汇总”。这些追踪源保存在本机，不会把飞书和腾讯文档的配置混在一起。
+
+只有一个来源时，模糊的更新请求会直接使用它；有多个来源时，仅在无法判断目标表格时询问。
+
+示例输出：
+
+```text
+📌 表格快照变化　新增 1 · 修改 1 · 删除 0
+
+新增记录
+• 数据产品经理
+    公司：某科技公司
+    地点：深圳
+
+修改记录
+• 后端开发
+    截止时间：2026-07-20 → 2026-07-31
+```
+
+同一次结果中的每条记录会保持相同字段顺序和链接格式。超过 20 条时自动切换为紧凑单行格式，但不会省略投递链接；约定字段缺失时显示 `—`。
 
 [MIT License](./LICENSE)
